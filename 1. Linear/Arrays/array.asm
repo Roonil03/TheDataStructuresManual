@@ -24,8 +24,6 @@ input_loop:
     mov rsi, prompt                 ; message to write
     mov rdx, 13                     ; length of the message
     syscall
-
-    ; Print the number (r8 + 1)
     mov rax, r8
     inc rax                         ; Add 1 to get numbers 1-5 instead of 0-4
     add rax, '0'                    ; Convert to ASCII
@@ -36,27 +34,19 @@ input_loop:
     mov rdx, 1                      ; Length is 1 byte
     syscall
     pop rax                         ; Clean up stack
-
-    ; Print " (0-9): "
     mov rax, 1                      ; sys_write
     mov rdi, 1                      ; stdout
     mov rsi, prompt_num             ; message to write
     mov rdx, 8                      ; length of the message
     syscall
-
-    ; Read user input
     mov rax, 0                      ; sys_read
     mov rdi, 0                      ; stdin
     mov rsi, input_buf              ; buffer to store input
     mov rdx, 2                      ; read 2 bytes (char + newline)
     syscall
-
-    ; Convert ASCII to integer and store
     movzx rax, byte [input_buf]     ; Get the character
     sub rax, '0'                    ; Convert ASCII to integer
     mov byte [r9 + r8], al          ; Store in array
-
-    ; Increment counter and continue if not done
     inc r8                          ; Increment counter
     cmp r8, 5                       ; Check if we've input 5 numbers
     jl input_loop                   ; If less than 5, continue loop
