@@ -1,0 +1,201 @@
+; Doubly Circular Linked List implementation in NASM (64-bit)
+; Each node contains: value (1 byte), next pointer (8 bytes), prev pointer (8 bytes)
+
+section .data
+    prompt_menu db "1. Add node", 10, "2. Display list forward", 10, "3. Display list backward", 10, "4. Exit", 10, "Choose option: ", 0
+    prompt_value db "Enter a value (0-9): ", 0
+    msg_list_forward db "Circular List (Forward): ", 0
+    msg_list_backward db "Circular List (Backward): ", 0
+    space db " <-> ", 0
+    newline db 10, 0
+    empty_msg db "List is empty!", 10, 0
+
+section .bss
+    head resq 1          ; Pointer to first node
+    input_buf resb 2     ; Buffer for user input
+    current resq 1       ; Pointer to current node
+
+section .text
+    global _start
+
+_start:
+    mov qword [head], 0      ; Initialize head pointer to NULL
+
+main_loop:
+    ; Display menu
+    mov rsi, prompt_menu
+    call print_string
+
+    ; Get user choice
+    call read_input
+    movzx rax, byte [input_buf]
+    sub rax, '0'
+
+    ; Menu handling
+    cmp rax, 1
+    je add_node
+    cmp rax, 2
+    je display_list_forward
+    cmp rax, 3
+    je display_list_backward
+    cmp rax, 4
+    je exit_program
+    jmp main_loop
+
+add_node:
+    ; Prompt for value
+    mov rsi, prompt_value
+    call print_string
+    
+    ; Read value
+    call read_input
+    movzx r12, byte [input_buf]    ; Store input value
+    sub r12, '0'                   ; Convert to integer
+
+    ; Allocate memory for new node (17 bytes)
+    mov rax, 9                     ; sys_mmap
+    mov rdi, 0                     ; let kernel choose address
+    mov rsi, 17                    ; size (17 bytes)
+    mov rdx, 3                     ; PROT_READ | PROT_WRITE
+    mov r10, 34                    ; MAP_PRIVATE | MAP_ANONYMOUS
+    mov r8, -1                     ; fd (no file)
+    mov r9, 0                      ; offset
+    syscall
+
+    ; Store value in node
+    mov byte [rax], r12b          ; Store value
+
+    ; If list is empty, create circular references to self
+    cmp qword [head], 0
+    je set_first_node
+
+    ; Add to end of list
+    mov rbx, [head]               ; Get head node
+    
+find_last:
+    mov rcx, [rbx + 1]           ; Load next pointer into rcx
+    cmp rcx, [head]              ; Check if next is head (complete circle)
+    je found_last
+    mov rbx, rcx                 ; Move to next node
+    jmp find_last
+
+found_last:
+    ; Connect new node
+    mov rcx, [head]              ; Load head into rcx
+    mov [rax + 1], rcx           ; New node's next points to head
+    mov [rax + 9], rbx           ; New node's prev points to current last
+    mov [rbx + 1], rax           ; Current last's next points to new node
+    mov rcx, [head]              ; Load head into rcx again
+    mov [rcx + 9], rax           ; Head's prev points to new node
+    jmp main_loop
+
+set_first_node:
+    mov [head], rax               ; Set head to new node
+    mov [rax + 1], rax           ; Next points to self (circular)
+    mov [rax + 9], rax           ; Prev points to self (circular)
+    jmp main_loop
+
+display_list_forward:
+    ; Print "Circular List (Forward): "
+    mov rsi, msg_list_forward
+    call print_string
+
+    ; Check if list is empty
+    cmp qword [head], 0
+    je print_empty
+
+    mov rbx, [head]               ; Start from head
+
+print_loop_forward:
+    ; Print value
+    movzx rax, byte [rbx]         ; Get value
+    add rax, '0'                  ; Convert to ASCII
+    push rax
+    mov rsi, rsp
+    mov rdx, 1
+    call print_chars
+    pop rax
+
+    mov rbx, [rbx + 1]            ; Move to next node
+    
+    ; Print arrow if not back to head
+    cmp rbx, [head]
+    je print_newline
+    mov rsi, space
+    call print_string
+    jmp print_loop_forward
+
+display_list_backward:
+    ; Print "Circular List (Backward): "
+    mov rsi, msg_list_backward
+    call print_string
+
+    ; Check if list is empty
+    cmp qword [head], 0
+    je print_empty
+
+    mov rbx, [head]               ; Start from head
+    mov rbx, [rbx + 9]            ; Move to last node
+
+print_loop_backward:
+    ; Print value
+    movzx rax, byte [rbx]         ; Get value
+    add rax, '0'                  ; Convert to ASCII
+    push rax
+    mov rsi, rsp
+    mov rdx, 1
+    call print_chars
+    pop rax
+
+    mov rbx, [rbx + 9]            ; Move to previous node
+    
+    ; Check if we're back at the last node
+    mov rcx, [head]
+    mov rcx, [rcx + 9]            ; Get last node
+    cmp rbx, rcx
+    je print_newline
+    
+    mov rsi, space
+    call print_string
+    jmp print_loop_backward
+
+print_empty:
+    mov rsi, empty_msg
+    call print_string
+    jmp main_loop
+
+print_newline:
+    mov rsi, newline
+    call print_string
+    jmp main_loop
+
+exit_program:
+    mov rax, 60                   ; sys_exit
+    xor rdi, rdi                  ; return 0
+    syscall
+
+; Helper functions
+print_string:
+    ; Calculate string length
+    push rsi
+    xor rdx, rdx
+    count_loop:
+    cmp byte [rsi + rdx], 0
+    je count_done
+    inc rdx
+    jmp count_loop
+count_done:
+    pop rsi
+print_chars:
+    mov rax, 1                    ; sys_write
+    mov rdi, 1                    ; stdout
+    syscall
+    ret
+
+read_input:
+    mov rax, 0                    ; sys_read
+    mov rdi, 0                    ; stdin
+    mov rsi, input_buf
+    mov rdx, 2                    ; read 2 bytes (char + newline)
+    syscall
+    ret
