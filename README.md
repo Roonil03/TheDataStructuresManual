@@ -29,7 +29,7 @@ This repository contains the following data structures:
     - B- Tree
     - B+ Tree
     - Trie
-    - Suffix Trie
+    - Suffix Tree
     - Heap
         - Min heap
         - Max heap
