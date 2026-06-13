@@ -25,7 +25,7 @@ Select a module category below to view the individual algorithms, memory configu
 * **Arrays & Matrices**
     * [Arrays](./1.%20Linear/Arrays/)
     * [Matrix](./1.%20Linear/Matrix/)
-    * [Sparse Matrix](./1.%20Linear/Sparse%Matrix/)
+    * [Sparse Matrix](./1.%20Linear/SparseMatrix/)
 * **Linked Lists**
     * [Singly Linked List](./1.%20Linear/Linked%List/SinglyLinkedList/)
     * [Doubly Linked List](./1.%20Linear/LinkedList/DoublyLinkedList/)
