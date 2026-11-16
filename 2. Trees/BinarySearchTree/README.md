@@ -1,5 +1,17 @@
 # Binary Search Tree (BST)
 
+## Included programs
+
+The C program reads a nonnegative node count followed by that many integers; the NASM program reads integers until EOF. Both ignore duplicate keys and print inorder traversal. Only insertion and traversal are implemented. Insertion/traversal/freeing use recursive calls and can require O(n) stack space on a skewed tree.
+
+Build from this directory (outputs stay in `/tmp`):
+
+```sh
+gcc -std=c11 -Wall -Wextra "BinarySearchTree.c" -o /tmp/binarysearchtree
+nasm -f elf64 "BinarySearchTree.asm" -o /tmp/tree.o
+gcc -no-pie /tmp/tree.o -o /tmp/tree-asm
+```
+
 ## Overview
 
 A Binary Search Tree (BST) is a specialized binary tree data structure that maintains a specific ordering property: for any node, all values in the left subtree are less than the node's value, and all values in the right subtree are greater than the node's value. This ordering enables efficient searching, insertion, and deletion operations.

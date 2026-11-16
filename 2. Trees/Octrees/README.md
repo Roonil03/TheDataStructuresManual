@@ -1,5 +1,17 @@
 # Octree Documentation
 
+## Included programs
+
+Both programs offer menu choices 1 (insert), 2 (search), 3 (display), and 4 (exit), with integer coordinates restricted to 0–255. Multiple distinct points remain searchable and duplicate insertion does not add a second point. The C version recursively subdivides inclusive bounding boxes and stores explicit leaf occupancy. The standalone NASM version follows eight coordinate bits from most significant to least significant, allocating sparse children. Each lookup traverses at most eight subdivision levels for this fixed domain. Display order/format differs between versions. Deletion, range queries, and dynamic-domain operations below are background concepts.
+
+Build from this directory (outputs stay in `/tmp`):
+
+```sh
+gcc -std=c11 -Wall -Wextra "octree.c" -o /tmp/octrees
+nasm -f elf64 octree.asm -o /tmp/octree.o
+ld /tmp/octree.o -o /tmp/octree-asm
+```
+
 ## Overview
 An **Octree** is a tree data structure used to partition three-dimensional space by recursively subdividing it into eight octants (cubes). It is the 3D analog of a quadtree (for 2D space) and binary tree (for 1D space). Octrees are particularly useful in 3D graphics, spatial indexing, collision detection, and scientific computing applications.
 

@@ -1,5 +1,17 @@
 # Fenwick Tree (Binary Indexed Tree)
 
+## Included programs
+
+Both programs read `n`, `n` signed 32-bit values, a nonnegative query count, and that many zero-based indices. Each query prints the inclusive prefix sum through its index, using signed 64-bit totals. Valid query indices satisfy `0 <= index < n`; negative or out-of-range queries fail. An empty array is accepted only with zero queries. Point-add helpers exist in the sources; the command-line examples expose prefix queries only.
+
+Build from this directory (outputs stay in `/tmp`):
+
+```sh
+gcc -std=c11 -Wall -Wextra "FenwickTree.c" -o /tmp/fenwicktree
+nasm -f elf64 "FenwickTree.asm" -o /tmp/tree.o
+gcc -no-pie /tmp/tree.o -o /tmp/tree-asm
+```
+
 ## What is a Fenwick Tree
 
 A Fenwick Tree, also known as a Binary Indexed Tree (BIT), is a specialized data structure that efficiently maintains cumulative frequency tables and supports dynamic prefix sum queries. Named after Peter M. Fenwick who introduced it in 1994, this data structure provides an elegant solution for scenarios requiring frequent updates and range sum queries on arrays.

@@ -1,3 +1,4 @@
+/* Array-backed heap insertion and repeated root extraction. */
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -18,7 +19,7 @@ void swap(int *a, int *b) {
 
 void heapify_up(int index) {
     if (index == 0) return;
-    
+
     int parent = (index - 1) / 2;
     if (heap.data[index] < heap.data[parent]) {
         swap(&heap.data[index], &heap.data[parent]);
@@ -30,15 +31,15 @@ void heapify_down(int index) {
     int left = 2 * index + 1;
     int right = 2 * index + 2;
     int smallest = index;
-    
+
     if (left < heap.size && heap.data[left] < heap.data[smallest]) {
         smallest = left;
     }
-    
+
     if (right < heap.size && heap.data[right] < heap.data[smallest]) {
         smallest = right;
     }
-    
+
     if (smallest != index) {
         swap(&heap.data[index], &heap.data[smallest]);
         heapify_down(smallest);
@@ -46,6 +47,7 @@ void heapify_down(int index) {
 }
 
 void insert(int value) {
+    if (heap.size >= MAX_SIZE) exit(EXIT_FAILURE);
     heap.data[heap.size] = value;
     heapify_up(heap.size);
     heap.size++;
@@ -53,32 +55,32 @@ void insert(int value) {
 
 int extract_min() {
     if (heap.size == 0) return -1;
-    
+
     int min = heap.data[0];
     heap.data[0] = heap.data[heap.size - 1];
     heap.size--;
-    
+
     if (heap.size > 0) {
         heapify_down(0);
     }
-    
+
     return min;
 }
 
 int main() {
     int n, value;
-    
-    scanf("%d", &n);
-    
+
+    if (scanf("%d", &n) != 1 || n < 0 || n > MAX_SIZE) return EXIT_FAILURE;
+
     for (int i = 0; i < n; i++) {
-        scanf("%d", &value);
+        if (scanf("%d", &value) != 1) return EXIT_FAILURE;
         insert(value);
     }
-    
+
     for (int i = 0; i < n; i++) {
         printf("%d ", extract_min());
     }
-    
+
     printf("\n");
     return 0;
 }

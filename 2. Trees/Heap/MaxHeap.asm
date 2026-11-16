@@ -1,4 +1,4 @@
-; maxheap.asm
+; Array-backed heap insertion and repeated root extraction.
 BITS 64
 default rel
 
@@ -19,20 +19,29 @@ section .text
     global main
 
 main:
+    push rbx
+    push r12
+    push r13
+    push r14
+    push r15
+    sub rsp, 8
     push    rbp
     mov     rbp, rsp
     sub     rsp, 32
 
-    ; read n
     lea     rdi, [rel fmt_d]
     lea     rsi, [rel n]
     xor     eax, eax
     call    scanf
+    cmp eax, 1
+    jne input_error
+    cmp dword [n], 0
+    jl input_error
+    cmp dword [n], 400
+    jg input_error
 
-    ; init heap_size=0
     mov     dword [rel heap_size], 0
 
-    ; insert n values
     xor     r12d, r12d
 .read_loop:
     cmp     r12d, dword [rel n]
@@ -42,6 +51,8 @@ main:
     lea     rsi, [rbp-4]
     xor     eax, eax
     call    scanf
+    cmp eax, 1
+    jne input_error
     mov     eax, [rbp-4]
     call    insert_heap
 
@@ -70,10 +81,25 @@ main:
 
     xor     eax, eax
     leave
+    add rsp, 8
+    pop r15
+    pop r14
+    pop r13
+    pop r12
+    pop rbx
     ret
 
-; insert_heap: bubble up if child > parent
-; in: EAX = new value
+input_error:
+    mov eax, 1
+    leave
+    add rsp, 8
+    pop r15
+    pop r14
+    pop r13
+    pop r12
+    pop rbx
+    ret
+
 insert_heap:
     push    rbp
     mov     rbp, rsp
@@ -81,12 +107,10 @@ insert_heap:
     push    rcx
     push    rdx
 
-    ; append to heap
     mov     ebx, dword [rel heap_size]
-    mov     dword [rel heap + 4*rbx], eax
+    mov     dword [heap + 4*rbx], eax
     inc     dword [rel heap_size]
 
-    ; bubble-up
     mov     ecx, ebx
 .up:
     test    ecx, ecx
@@ -95,13 +119,13 @@ insert_heap:
     dec     edx
     shr     edx, 1
 
-    mov     eax, dword [rel heap + 4*ecx]
-    mov     ebx, dword [rel heap + 4*edx]
+    mov     eax, dword [heap + 4*ecx]
+    mov     ebx, dword [heap + 4*edx]
     cmp     eax, ebx
-    jle     .done_up      ; if child ≤ parent, done
-    ; swap child and parent
-    mov     dword [rel heap + 4*ecx], ebx
-    mov     dword [rel heap + 4*edx], eax
+    jle     .done_up
+
+    mov     dword [heap + 4*ecx], ebx
+    mov     dword [heap + 4*edx], eax
     mov     ecx, edx
     jmp     .up
 
@@ -112,8 +136,6 @@ insert_heap:
     pop     rbp
     ret
 
-; extract_max: remove root, bubble down to restore max-heap
-; out: EAX = max value
 extract_max:
     push    rbp
     mov     rbp, rsp
@@ -123,13 +145,11 @@ extract_max:
     push    r8
     push    r9
 
-    ; get max
     mov     eax, dword [rel heap]
 
-    ; replace root with last element
     mov     ebx, dword [rel heap_size]
     dec     ebx
-    mov     ecx, dword [rel heap + 4*ebx]
+    mov     ecx, dword [heap + 4*ebx]
     mov     dword [rel heap], ecx
     dec     dword [rel heap_size]
 
@@ -138,33 +158,31 @@ extract_max:
 
     xor     ecx, ecx
 .down:
-    ; left = 2*i+1
+
     mov     edx, ecx
     shl     edx, 1
     inc     edx
     cmp     edx, dword [rel heap_size]
     jge     .done_down
 
-    ; select larger child
     mov     r8d, edx
-    mov     r9d, dword [rel heap + 4*edx]
+    mov     r9d, dword [heap + 4*edx]
     inc     edx
     cmp     edx, dword [rel heap_size]
     jge     .chk_parent
-    mov     ebx, dword [rel heap + 4*edx]
+    mov     ebx, dword [heap + 4*edx]
     cmp     ebx, r9d
     jle     .chk_parent
     mov     r8d, edx
     mov     r9d, ebx
 
 .chk_parent:
-    mov     ebx, dword [rel heap + 4*ecx]
+    mov     ebx, dword [heap + 4*ecx]
     cmp     ebx, r9d
-    jge     .done_down      ; if parent ≥ child, done
+    jge     .done_down
 
-    ; swap parent and child
-    mov     dword [rel heap + 4*ecx], r9d
-    mov     dword [rel heap + 4*r8], ebx
+    mov     dword [heap + 4*ecx], r9d
+    mov     dword [heap + 4*r8], ebx
     mov     ecx, r8d
     jmp     .down
 

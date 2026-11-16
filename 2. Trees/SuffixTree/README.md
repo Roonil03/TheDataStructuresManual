@@ -1,5 +1,19 @@
 # Suffix Tree
 
+## Included programs
+
+`SuffixTree.c` reads a text token and a pattern token, each at most 999 bytes, then prints `Found` or `Not found`. It builds a naive compressed suffix trie (an implicit suffix tree), inserting suffixes independently in O(n²) time. Substring search takes O(m) for pattern length m. The fixed 256-way child arrays use O(n) nodes for a fixed byte alphabet. It does not implement Ukkonen’s algorithm, active points, maintained suffix links, a unique terminator, suffix enumeration, occurrence counts, or longest-repeated-substring output. Suffixes that end within an edge need no explicit marker for the implemented substring-existence query.
+
+`SuffixTree.asm` reads a text token of up to 999 bytes and a pattern token of up to 255 bytes. It builds a compact suffix tree by inserting suffixes from left to right. A node stores an edge’s start and exclusive end offsets, its first child, its next sibling, and the earliest suffix position below it. A mismatch inside an edge splits that edge. A successful query prints the earliest zero-based match. A miss prints `Pattern not found`. For a fixed byte alphabet, construction takes O(n²) time and lookup takes O(m) time. At most two nodes are added per suffix.
+
+Build from this directory (outputs stay in `/tmp`):
+
+```sh
+gcc -std=c11 -Wall -Wextra "SuffixTree.c" -o /tmp/suffixtree
+nasm -f elf64 "SuffixTree.asm" -o /tmp/tree.o
+gcc -no-pie /tmp/tree.o -o /tmp/tree-asm
+```
+
 ## Overview
 
 A **suffix tree** is a compressed trie that represents all suffixes of a given string in a space-efficient way.  By collapsing chains of single children into edges labeled with substrings, suffix trees support fast substring queries, longest-common-substring computations, and other advanced string operations in linear time relative to the pattern length.
@@ -7,9 +21,9 @@ A **suffix tree** is a compressed trie that represents all suffixes of a given s
 ## Key Properties
 
 - **Structure**
-Each internal node has at least two children, and edges carry substrings rather than single characters.  Leaf nodes correspond to the individual suffixes of the text.
+In an explicit suffix tree built with a unique terminator, each suffix has its own leaf and each non-root internal node has at least two children. In the implicit trees used here, a suffix can end partway along another suffix’s path.
 - **Space Complexity**
-A suffix tree for a string of length *n* can be stored in *O(n)* space by using edge-label compression and shared suffix links.
+A suffix tree for a string of length *n* can be stored in *O(n)* space by storing compressed edge labels as intervals in the original text. Suffix links accelerate construction.
 - **Construction Time**
 Ukkonen’s algorithm builds the suffix tree in *O(n)* time for constant-size alphabets by iteratively adding suffixes and maintaining an “active point” for efficient extension.
 

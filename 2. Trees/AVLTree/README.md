@@ -1,5 +1,17 @@
 # AVL Tree
 
+## Included programs
+
+Both programs read integer keys until EOF, ignore duplicate keys, and print inorder traversal. Insertion maintains AVL heights and rotations. The balance factor used in the sources is `height(left) - height(right)`. Search and deletion discussed below are background concepts, not implemented operations. Recursive insertion uses O(log n) auxiliary space.
+
+Build from this directory (outputs stay in `/tmp`):
+
+```sh
+gcc -std=c11 -Wall -Wextra "AVLTree.c" -o /tmp/avltree
+nasm -f elf64 "AVLTree.asm" -o /tmp/tree.o
+gcc -no-pie /tmp/tree.o -o /tmp/tree-asm
+```
+
 ## Overview
 
 An AVL Tree (named after inventors Georgy Adelson-Velsky and Evgenii Landis) is a self-balancing binary search tree where the heights of the two child subtrees of any node differ by at most one. It was the first self-balancing binary search tree data structure to be invented, published in 1962.
@@ -10,7 +22,7 @@ AVL trees maintain the binary search tree property while ensuring that operation
 
 ### Balance Property
 - For every node, the height difference between left and right subtrees is at most 1
-- Balance Factor (BF) = Height(Right Subtree) - Height(Left Subtree)
+- Balance Factor (BF) = Height(Left Subtree) - Height(Right Subtree)
 - Valid balance factors: -1, 0, or 1
 
 ### Height Characteristics
@@ -56,7 +68,7 @@ The logarithmic time complexity is guaranteed due to the height-balanced propert
 
 - **Memory Usage**: O(n) where n is the number of nodes
 - **Additional Overhead**: Each node stores height information (typically 1 integer)
-- **Auxiliary Space**: O(1) for operations, O(log n) for recursion stack
+- **Auxiliary Space**: O(log n) for recursive insertion; O(1) for each rotation
 
 
 
@@ -69,7 +81,7 @@ height(node) = 1 + max(height(left_child), height(right_child))
 
 ### Balance Factor Calculation
 ```
-balance_factor(node) = height(right_child) - height(left_child)
+balance_factor(node) = height(left_child) - height(right_child)
 ```
 
 ### Rebalancing Strategy

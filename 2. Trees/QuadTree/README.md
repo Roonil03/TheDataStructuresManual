@@ -1,5 +1,17 @@
 # Quad‐Tree Data Structure Documentation
 
+## Included programs
+
+The examples read `n` (1–200), `n` integer `(x, y)` points, and a query point. They implement a point quadtree, splitting by each stored point’s coordinates rather than fixed spatial cells. They print a preorder traversal and find a nearest point by visiting every node, using exact squared-distance comparisons for signed 32-bit coordinates. Equal-distance ties keep the first point visited. This tree can be skewed; nearest search is O(n). Region subdivision, pruning, deletion, and range-query algorithms below are not implemented here.
+
+Build from this directory (outputs stay in `/tmp`):
+
+```sh
+gcc -std=c11 -Wall -Wextra "QuadTree.c" -o /tmp/quadtree
+nasm -f elf64 "QuadTree.asm" -o /tmp/tree.o
+gcc -no-pie /tmp/tree.o -o /tmp/tree-asm
+```
+
 ## Overview
 
 A **Quad‐Tree** is a hierarchical data structure for partitioning two‐dimensional space into adaptable, axis‐aligned quadrants. Each node stores a point or region, and recursively divides its area into four child quadrants—Northwest (NW), Northeast (NE), Southwest (SW), and Southeast (SE)—allowing efficient spatial queries such as point location, range search, and nearest‐neighbor search.
@@ -9,7 +21,7 @@ A **Quad‐Tree** is a hierarchical data structure for partitioning two‐dimens
 - **Recursive Subdivision**: The plane is subdivided into quadrants at each node, with each non‐leaf node having exactly four children.
 - **Adaptive Resolution**: Regions only subdivide when they contain points exceeding a threshold, providing finer granularity where needed.
 - **Spatial Locality**: Points geographically close in 2D map to nearby nodes, improving cache performance and query efficiency.
-- **Balanced by Content**: Unlike fixed grids, Quad‐Trees adapt their shape to data distribution, avoiding wasted space in sparse areas.
+- **Adaptive Shape**: Quad-Trees adapt to data distribution; point quadtrees are not guaranteed to be balanced.
 
 
 ## Core Operations

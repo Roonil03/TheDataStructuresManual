@@ -1,8 +1,10 @@
+/* Iterative range sums with leaves in the second half of the array. */
 #include <stdio.h>
 #include <stdlib.h>
+#include <limits.h>
 
 int n, q;
-int *tree;
+long long *tree;
 
 void build() {
     for (int i = n - 1; i > 0; i--) {
@@ -10,8 +12,8 @@ void build() {
     }
 }
 
-int query(int l, int r) {
-    int sum = 0;
+long long query(int l, int r) {
+    long long sum = 0;
     l += n;
     r += n + 1;
     while (l < r) {
@@ -24,6 +26,7 @@ int query(int l, int r) {
 }
 
 void update(int pos, int value) {
+    if (pos < 0 || pos >= n) return;
     pos += n;
     tree[pos] = value;
     while (pos > 1) {
@@ -33,26 +36,27 @@ void update(int pos, int value) {
 }
 
 int main() {
-    scanf("%d", &n);
-    
-    tree = (int*)malloc(2 * n * sizeof(int));
-    
+    if (scanf("%d", &n) != 1 || n < 0 || n > INT_MAX / 2) return EXIT_FAILURE;
+
+    tree = (long long*)malloc(2 * n * sizeof(long long));
+    if (!tree && n != 0) exit(EXIT_FAILURE);
+
     for (int i = 0; i < n; i++) {
-        scanf("%d", &tree[n + i]);
+        if (scanf("%lld", &tree[n + i]) != 1 || tree[n + i] < INT_MIN || tree[n + i] > INT_MAX) { free(tree); return EXIT_FAILURE; }
     }
-    
+
     build();
-    
-    scanf("%d", &q);
-    
+
+    if (scanf("%d", &q) != 1 || q < 0) { free(tree); return EXIT_FAILURE; }
+
     for (int i = 0; i < q; i++) {
         int l, r;
-        scanf("%d %d", &l, &r);
-        printf("%d ", query(l, r));
+        if (scanf("%d %d", &l, &r) != 2 || l < 0 || l > r || r >= n) { free(tree); return EXIT_FAILURE; }
+        printf("%lld ", query(l, r));
     }
-    
+
     printf("\n");
-    
+
     free(tree);
     return 0;
 }

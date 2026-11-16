@@ -1,5 +1,19 @@
 # R-Tree Data Structure
 
+## Included programs
+
+`rTree.c` offers insertion, inclusive-overlap range search, display, and exit. Rectangles require finite coordinates with `xmin <= xmax` and `ymin <= ymax`; zero-area rectangles and boundary intersections are accepted. Nodes hold at most four entries, with at least two in each non-root node. Insertion chooses a child by area enlargement, refreshes covering rectangles, and propagates splits through the root. Splits use quadratic seed selection and greedy assignment subject to minimum occupancy. Deletion and updates below are not implemented.
+
+`rTree.asm` is a fixed four-point, single-leaf range-search demonstration. It inserts `(1,1)` through `(4,4)` and prints matches for `[2,2]`–`[3,3]`. It has no input, splitting, general rectangle insertion, or dynamic R-tree construction.
+
+Build from this directory (outputs stay in `/tmp`):
+
+```sh
+gcc -std=c11 -Wall -Wextra "rTree.c" -o /tmp/rtrees
+nasm -f elf64 "rTree.asm" -o /tmp/tree.o
+gcc -no-pie /tmp/tree.o -o /tmp/tree-asm
+```
+
 ## Introduction
 
 **R-Tree** is a tree data structure designed for indexing multi-dimensional spatial data efficiently. Proposed by Antonin Guttman in 1984, it serves as a spatial access method that organizes geometric objects using their **Minimum Bounding Rectangles (MBRs)**.

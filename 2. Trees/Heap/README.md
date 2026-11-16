@@ -1,4 +1,18 @@
 # Heaps
+
+## Included programs
+
+The examples read a nonnegative count and that many integers, then repeatedly extract and print every value. `MinHeap.c` accepts at most 1000 elements; `MaxHeap.c` and both NASM examples accept at most 400. Min-heaps print ascending order and max-heaps descending order, retaining duplicates. These programs construct heaps by repeated insertion, taking O(n log n); the O(n) build bound below describes the separate bottom-up heap construction algorithm. Extract-max uses the same O(log n) bound as extract-min.
+
+Build from this directory (outputs stay in `/tmp`):
+
+```sh
+gcc -std=c11 -Wall -Wextra "MinHeap.c" -o /tmp/heap
+nasm -f elf64 "MinHeap.asm" -o /tmp/tree.o
+gcc -no-pie /tmp/tree.o -o /tmp/tree-asm
+```
+
+Use the same commands with `MaxHeap` to build the max-heap examples.
 ## Min‐Heap Data Structure Documentation
 
 ### Overview

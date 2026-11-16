@@ -1,217 +1,187 @@
-; suffixtree.asm
+; Each node labels its incoming edge with a text slice and stores the earliest suffix below it.
 BITS 64
 default rel
 
-section .note.GNU-stack noalloc noexec nowrite progbits
+extern scanf, printf, strlen
+global main
 
-extern malloc
-extern scanf
-extern printf
-extern strlen
+struc Node
+    .child:   resq 1
+    .sibling: resq 1
+    .start:   resd 1
+    .end:     resd 1
+    .first:   resd 1
+    .padding: resd 1
+endstruc
 
-section .data
-    fmt_str     db "%s", 0
-    fmt_found   db "Found at position %d", 10, 0
-    fmt_not     db "Pattern not found", 10, 0
-    
+section .rodata
+    fmt_text  db "%999s", 0
+    fmt_query db "%255s", 0
+    fmt_found db "Found at position %d", 10, 0
+    fmt_miss  db "Pattern not found", 10, 0
+
 section .bss
-    text        resb 1024   ; Input text
-    pattern     resb 256    ; Search pattern
-    suffixes    resq 1000   ; Array of suffix pointers
-    suffix_count resd 1     ; Number of suffixes
+    nodes   resb 2000 * Node_size
+    used    resd 1
+    text    resb 1000
+    pattern resb 256
 
 section .text
-    global main
 
-; Create suffix array
-; RDI = text pointer
-create_suffix_array:
-    push rbp
-    mov rbp, rsp
-    push rbx
-    push r12
-    push r13
-    
-    mov rbx, rdi            ; rbx = text
-    
-    ; Get text length
-    call strlen
-    mov r12, rax            ; r12 = text length
-    mov [suffix_count], eax
-    
-    ; Create suffixes
-    xor r13, r13            ; r13 = i = 0
-    
-.suffix_loop:
-    cmp r13, r12
-    jge .done
-    
-    ; Calculate suffix position and store
-    lea rax, [rbx + r13]    ; rax = text + i
-    lea rcx, [suffixes]     ; rcx = suffixes array
-    mov [rcx + r13*8], rax  ; suffixes[i] = text + i
-    
-    inc r13
-    jmp .suffix_loop
-    
-.done:
-    mov eax, 1
-    pop r13
-    pop r12
-    pop rbx
-    pop rbp
+new_node:
+    mov eax, [used]
+    inc dword [used]
+    imul eax, Node_size
+    lea rcx, [nodes]
+    add rax, rcx
+    mov qword [rax + Node.child], 0
+    mov qword [rax + Node.sibling], 0
+    mov [rax + Node.start], edi
+    mov [rax + Node.end], esi
+    mov [rax + Node.first], edx
     ret
 
-; Search for pattern in suffix array
-; RDI = pattern pointer
-; Returns: EAX = position if found, -1 if not found
-search_pattern:
-    push rbp
-    mov rbp, rsp
+build_tree:
     push rbx
     push r12
     push r13
     push r14
-    
-    mov rbx, rdi            ; rbx = pattern
-    
-    ; Get pattern length
-    call strlen
-    mov r12, rax            ; r12 = pattern length
-    
-    ; Search through all suffixes
-    xor r13, r13            ; r13 = i = 0
-    
-.search_loop:
-    mov eax, [suffix_count]
-    cmp r13d, eax
-    jge .not_found
-    
-    ; Get current suffix pointer
-    lea rax, [suffixes]
-    mov r14, [rax + r13*8]  ; r14 = suffix string
-    
-    ; Compare pattern with suffix
-    mov rdi, r14            ; current suffix
-    mov rsi, rbx            ; pattern
-    mov rdx, r12            ; pattern length
-    call my_strncmp
-    
-    test eax, eax
-    jz .found               ; my_strncmp returns 0 on match
-    
-    inc r13
-    jmp .search_loop
-    
-.found:
-    mov eax, r13d
-    jmp .exit
-    
-.not_found:
-    mov eax, -1
-    
-.exit:
+    push r15
+    mov r12d, edi
+    lea rbx, [text]
+    mov dword [used], 1
+    mov qword [nodes + Node.child], 0
+    xor r13d, r13d
+.suffix:
+    cmp r13d, r12d
+    jae .done
+    mov r14d, r13d
+    lea r15, [nodes + Node.child]
+.find_child:
+    mov r8, [r15]
+    test r8, r8
+    jz .append_leaf
+    mov ecx, [r8 + Node.start]
+    mov al, [rbx + rcx]
+    cmp al, [rbx + r14]
+    je .match_edge
+    lea r15, [r8 + Node.sibling]
+    jmp .find_child
+.match_edge:
+    mov edx, r14d
+.match_byte:
+    cmp ecx, [r8 + Node.end]
+    je .descend
+    cmp edx, r12d
+    je .next_suffix
+    mov al, [rbx + rcx]
+    cmp al, [rbx + rdx]
+    jne .split
+    inc ecx
+    inc edx
+    jmp .match_byte
+.descend:
+    cmp edx, r12d
+    je .next_suffix
+    mov r14d, edx
+    lea r15, [r8 + Node.child]
+    jmp .find_child
+.split:
+    mov r14d, edx
+    mov esi, ecx
+    mov edi, [r8 + Node.start]
+    mov [r8 + Node.start], ecx
+    mov edx, [r8 + Node.first]
+    call new_node
+    mov [r15], rax
+    mov rcx, [r8 + Node.sibling]
+    mov [rax + Node.sibling], rcx
+    mov qword [r8 + Node.sibling], 0
+    mov [rax + Node.child], r8
+    lea r15, [r8 + Node.sibling]
+.append_leaf:
+    mov edi, r14d
+    mov esi, r12d
+    mov edx, r13d
+    call new_node
+    mov [r15], rax
+.next_suffix:
+    inc r13d
+    jmp .suffix
+.done:
+    pop r15
     pop r14
     pop r13
     pop r12
     pop rbx
-    pop rbp
     ret
 
-; Fixed strncmp implementation
-; RDI = str1, RSI = str2, RDX = n
-; Returns: EAX = 0 if equal, non-zero otherwise
-my_strncmp:
-    push rbp
-    mov rbp, rsp
-    push rbx
-    push rcx
-    push r8
-    
-    mov rbx, rdi            ; rbx = str1 (preserve)
-    mov r8, rsi             ; r8 = str2 (preserve)
-    xor rcx, rcx            ; rcx = counter
-    
-.compare_loop:
-    cmp rcx, rdx
-    jge .equal
-    
-    mov al, [rbx + rcx]     ; Load from str1
-    mov dil, [r8 + rcx]     ; Load from str2 (use dil to avoid rbx corruption)
-    cmp al, dil
-    jne .not_equal
-    
-    ; Check for null terminator
-    test al, al
-    jz .equal
-    
-    inc rcx
-    jmp .compare_loop
-    
-.equal:
-    xor eax, eax
-    jmp .exit
-    
-.not_equal:
-    mov eax, 1
-    
-.exit:
-    pop r8
-    pop rcx
-    pop rbx
-    pop rbp
+search_pattern:
+    lea r9, [text]
+    mov r8, [nodes + Node.child]
+.child:
+    test r8, r8
+    jz .miss
+    mov ecx, [r8 + Node.start]
+    mov al, [r9 + rcx]
+    cmp al, [rdi]
+    je .edge
+    mov r8, [r8 + Node.sibling]
+    jmp .child
+.edge:
+    inc ecx
+    inc rdi
+    cmp byte [rdi], 0
+    je .found
+    cmp ecx, [r8 + Node.end]
+    je .descend
+    mov al, [r9 + rcx]
+    cmp al, [rdi]
+    je .edge
+.miss:
+    mov eax, -1
+    ret
+.descend:
+    mov r8, [r8 + Node.child]
+    jmp .child
+.found:
+    mov eax, [r8 + Node.first]
     ret
 
-; Main function
 main:
-    push rbp
-    mov rbp, rsp
-    sub rsp, 32
-    
-    ; Read input text
-    lea rdi, [fmt_str]
+    sub rsp, 8
+    lea rdi, [fmt_text]
     lea rsi, [text]
     xor eax, eax
     call scanf
-    
-    ; Create suffix array
-    lea rdi, [text]
-    call create_suffix_array
-    test eax, eax
-    jz .error
-    
-    ; Read search pattern
-    lea rdi, [fmt_str]
+    cmp eax, 1
+    jne .invalid
+    lea rdi, [fmt_query]
     lea rsi, [pattern]
     xor eax, eax
     call scanf
-    
-    ; Search for pattern
+    cmp eax, 1
+    jne .invalid
+    lea rdi, [text]
+    call strlen
+    mov edi, eax
+    call build_tree
     lea rdi, [pattern]
     call search_pattern
-    
-    ; Print result
-    cmp eax, -1
-    je .not_found
-    
-    lea rdi, [fmt_found]
+    lea rdi, [fmt_miss]
+    test eax, eax
+    js .print
     mov esi, eax
+    lea rdi, [fmt_found]
+.print:
     xor eax, eax
     call printf
+    xor eax, eax
     jmp .done
-    
-.not_found:
-    lea rdi, [fmt_not]
-    xor eax, eax
-    call printf
-    jmp .done
-    
-.error:
-    lea rdi, [fmt_not]
-    xor eax, eax
-    call printf
-    
+.invalid:
+    mov eax, 1
 .done:
-    xor eax, eax
-    leave
+    add rsp, 8
     ret
+
+section .note.GNU-stack noalloc noexec nowrite progbits

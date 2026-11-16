@@ -1,4 +1,6 @@
-; segtree.asm
+; Iterative range sums with leaves in the second half of the array.
+extern exit, free
+
 BITS 64
 default rel
 section .note.GNU-stack noalloc noexec nowrite progbits
@@ -7,67 +9,81 @@ extern malloc, scanf, printf
 
 section .data
     fmt_int db "%d",0
-    fmt_ans db "%d ",0
+    fmt_ans db "%lld ",0
     fmt_nl  db 10,0
 
 section .bss
-    n       resd 1           ; array size
-    q       resd 1           ; number of queries
-    arr     resq 1           ; pointer to original array (unused here)
-    tree    resq 1           ; pointer to segment tree array
+    n       resd 1
+    q       resd 1
+    arr     resq 1
+    tree    resq 1
 
 section .text
     global main
 
 main:
+    push rbx
+    push r12
+    push r13
+    push r14
+    push r15
+    sub rsp, 8
     push rbp
     mov rbp, rsp
     sub rsp, 32
 
-    ; Read n
     lea rdi, [fmt_int]
     lea rsi, [n]
     xor eax, eax
-    call scanf               ; scanf("%d", &n) [2]
+    call scanf
+    cmp eax, 1
+    jne input_error
+    cmp dword [n], 0
+    jl input_error
+    cmp dword [n], 268435455
+    jg input_error
 
-    ; Allocate tree array of size 2*n
     mov eax, [n]
     mov edi, eax
-    shl edi, 3               ; bytes = 2*n*4
+    shl edi, 4
     call malloc
+    test rax, rax
+    jz allocation_error
     mov [tree], rax
 
-    ; Load leaf nodes: tree[n..2n-1]
-    xor r12d, r12d           ; i = 0
+    xor r12d, r12d
 .LOAD:
     cmp r12d, [n]
     jge .BUILD
     lea rdi, [fmt_int]
     lea rsi, [rbp-4]
     xor eax, eax
-    call scanf               ; scanf("%d", temp)
-    mov ecx, [rbp-4]
+    call scanf
+    cmp eax, 1
+    jne input_error
+    movsxd rcx, dword [rbp-4]
     mov rax, [tree]
-    mov rsi, r12            ; index = n + i
-    add rsi, [n]
-    mov [rax + 4*rsi], ecx ; tree[n+i] = value
+    mov rsi, r12
+    mov edx, [n]
+    add rsi, rdx
+    mov [rax + 8*rsi], rcx
     inc r12d
     jmp .LOAD
 
 .BUILD:
     mov r12d, [n]
-    dec r12d                 ; i = n-1
+    dec r12d
 .BUILD_LOOP:
     cmp r12d, 1
     jl .READ_Q
     mov rax, [tree]
     mov rsi, r12
-    shl rsi, 1               ; left child index = 2*i
-    mov ebx, [rax + 4*rsi]
-    inc rsi                  ; right child index = 2*i+1
-    mov edx, [rax + 4*rsi]
-    add ebx, edx
-    mov [rax + 4*r12], ebx   ; tree[i] = left + right
+    shl rsi, 1
+    mov rbx, [rax + 8*rsi]
+    inc rsi
+    mov rdx, [rax + 8*rsi]
+    add rbx, rdx
+    mov [rax + 8*r12], rbx
     dec r12d
     jmp .BUILD_LOOP
 
@@ -75,27 +91,41 @@ main:
     lea rdi, [fmt_int]
     lea rsi, [q]
     xor eax, eax
-    call scanf               ; scanf("%d", &q)
+    call scanf
+    cmp eax, 1
+    jne input_error
 
-    xor r12d, r12d           ; query counter = 0
+    cmp dword [q], 0
+    jl input_error
+    xor r12d, r12d
 .QUERY_LOOP:
     cmp r12d, [q]
     jge .DONE
     lea rdi, [fmt_int]
     lea rsi, [rbp-8]
     xor eax, eax
-    call scanf               ; read l
+    call scanf
+    cmp eax, 1
+    jne input_error
     lea rdi, [fmt_int]
     lea rsi, [rbp-4]
     xor eax, eax
-    call scanf               ; read r
+    call scanf
+    cmp eax, 1
+    jne input_error
 
-    mov edi, [rbp-8]         ; l
-    mov esi, [rbp-4]         ; r
-    call query_range         ; result in eax [1]
+    mov edi, [rbp-8]
+    mov esi, [rbp-4]
+    test edi, edi
+    js input_error
+    cmp edi, esi
+    jg input_error
+    cmp esi, [n]
+    jge input_error
+    call query_range
 
     lea rdi, [fmt_ans]
-    mov esi, eax
+    mov rsi, rax
     xor eax, eax
     call printf
 
@@ -106,11 +136,24 @@ main:
     lea rdi, [fmt_nl]
     xor eax, eax
     call printf
-
+    xor r12d, r12d
+    jmp cleanup
+input_error:
+    mov r12d, 1
+cleanup:
+    mov rdi, [tree]
+    call free
+    mov qword [tree], 0
+    mov eax, r12d
     leave
+    add rsp, 8
+    pop r15
+    pop r14
+    pop r13
+    pop r12
+    pop rbx
     ret
 
-; query_range(l, r): returns sum of [l, r]
 query_range:
     push rbp
     mov rbp, rsp
@@ -118,12 +161,12 @@ query_range:
     push r12
     push r13
 
-    mov r12d, edi            ; l
-    mov r13d, esi            ; r
-    add r12d, [n]            ; l += n
-    add r13d, [n]            ; r += n
-    inc r13d                 ; exclusive boundary
-    xor eax, eax             ; sum = 0
+    mov r12d, edi
+    mov r13d, esi
+    add r12d, [n]
+    add r13d, [n]
+    inc r13d
+    xor eax, eax
 
 .Q_LOOP:
     cmp r12d, r13d
@@ -131,7 +174,7 @@ query_range:
     test r12d, 1
     jz .CHK_R
     mov rbx, [tree]
-    add eax, [rbx + 4*r12]
+    add rax, [rbx + 8*r12]
     inc r12d
 
 .CHK_R:
@@ -139,7 +182,7 @@ query_range:
     jz .SHIFT
     dec r13d
     mov rbx, [tree]
-    add eax, [rbx + 4*r13]
+    add rax, [rbx + 8*r13]
 
 .SHIFT:
     shr r12d, 1
@@ -152,3 +195,9 @@ query_range:
     pop rbx
     pop rbp
     ret
+
+section .text
+allocation_error:
+    mov edi, 1
+    call exit
+    ud2

@@ -1,5 +1,17 @@
 # Segment Tree
 
+## Included programs
+
+Both programs read `n`, `n` signed 32-bit values, a nonnegative query count, then inclusive zero-based ranges `l r`. Valid ranges satisfy `0 <= l <= r < n`. They use an iterative `2*n` array and signed 64-bit sums. Empty arrays require zero queries. Point-assignment helpers exist in C; the command-line programs expose range sums only. Lazy propagation, persistence, and multidimensional operations below are background concepts. This iterative implementation uses O(1) auxiliary space per query/update.
+
+Build from this directory (outputs stay in `/tmp`):
+
+```sh
+gcc -std=c11 -Wall -Wextra "SegmentTree.c" -o /tmp/segmenttree
+nasm -f elf64 "SegmentTree.asm" -o /tmp/tree.o
+gcc -no-pie /tmp/tree.o -o /tmp/tree-asm
+```
+
 ## What is a Segment Tree
 
 A Segment Tree is a versatile tree-based data structure designed to efficiently handle range queries and updates on arrays or sequences of data. Originally developed for computational geometry applications, segment trees have become fundamental data structures for solving problems involving intervals or line segments, supporting operations such as range sum queries, range minimum/maximum queries, and range updates in logarithmic time.

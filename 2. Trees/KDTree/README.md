@@ -1,5 +1,17 @@
 # K‐D Trees
 
+## Included programs
+
+The examples read `n` (1–100), `n` integer `(x, y)` points, and a query point. They insert in input order while alternating split axes, print inorder traversal, then find a nearest point by visiting every node. Squared-distance comparisons are exact across the full signed 32-bit coordinate range. Equal-distance ties retain the first point encountered by the nearest traversal. This implementation is not median-balanced and does not prune branches: nearest search is O(n), and worst-case insertion is O(n) per point. Deletion/range search and balanced construction below are background concepts.
+
+Build from this directory (outputs stay in `/tmp`):
+
+```sh
+gcc -std=c11 -Wall -Wextra "KDTree.c" -o /tmp/kdtree
+nasm -f elf64 "KDTree.asm" -o /tmp/tree.o
+gcc -no-pie /tmp/tree.o -o /tmp/tree-asm
+```
+
 ## Overview
 
 A **K‐Dimensional Tree (KD‐Tree)** is a space‐partitioning binary tree data structure used for organizing points in k‐dimensional space. Each non‐leaf node acts as a hyperplane that divides the space into two half‐spaces, with points to the left and right of this hyperplane represented by the left and right subtrees respectively. The tree alternates splitting dimensions at each level, making it highly efficient for spatial queries such as nearest neighbor search and range queries.
