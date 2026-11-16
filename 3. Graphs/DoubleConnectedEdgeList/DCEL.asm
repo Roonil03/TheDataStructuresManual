@@ -1,12 +1,5 @@
 section .data
-    fmt_vert:    db "Vertices: %d", 10, 0
-    fmt_vinfo:   db "  V%d: incident_he=%d", 10, 0
-    fmt_he:      db "Half-Edges: %d", 10, 0
-    fmt_heinfo:  db "  HE%d: origin=V%d twin=HE%d", 10, 0
-    fmt_faces:   db "Faces: %d", 10, 0
-    fmt_finfo:   db "  F%d: edge=HE%d", 10, 0
     fmt_counts:  db "V=%d HE=%d F=%d", 10, 0
-    fmt_pass:    db "All tests passed.", 10, 0
 
 DCEL_VERTS    equ 0
 DCEL_HEDGES   equ 8
@@ -14,7 +7,10 @@ DCEL_FACES    equ 16
 DCEL_NV       equ 24
 DCEL_NHE      equ 28
 DCEL_NF       equ 32
-DCEL_SIZE     equ 40
+DCEL_CAP_V    equ 36
+DCEL_CAP_HE   equ 40
+DCEL_CAP_F    equ 44
+DCEL_SIZE     equ 48
 
 VERT_X        equ 0
 VERT_Y        equ 8
@@ -36,7 +32,7 @@ FACE_SIZE     equ 16
 
 section .text
     global main, dcel_create, dcel_add_vertex, dcel_add_face, dcel_add_edge_pair, dcel_free
-    extern malloc, free, printf
+    extern calloc, free, printf
 
 dcel_create:
     push rbp
@@ -47,37 +43,60 @@ dcel_create:
     push r14
     sub rsp, 16
 
+    test edi, edi
+    js .invalid
+    test esi, esi
+    js .invalid
+    test edx, edx
+    js .invalid
     mov r12d, edi
     mov r13d, esi
     mov r14d, edx
-
-    mov edi, DCEL_SIZE
-    call malloc
+    mov edi, 1
+    mov esi, DCEL_SIZE
+    call calloc
+    test rax, rax
+    jz .done
     mov rbx, rax
+    mov [rbx + DCEL_CAP_V], r12d
+    mov [rbx + DCEL_CAP_HE], r13d
+    mov [rbx + DCEL_CAP_F], r14d
 
-    mov dword [rbx + DCEL_NV], 0
-    mov dword [rbx + DCEL_NHE], 0
-    mov dword [rbx + DCEL_NF], 0
-
-    mov eax, r12d
-    imul eax, VERT_SIZE
-    movsxd rdi, eax
-    call malloc
+    mov edi, r12d
+    mov esi, VERT_SIZE
+    call calloc
     mov [rbx + DCEL_VERTS], rax
-
-    mov eax, r13d
-    imul eax, HE_SIZE
-    movsxd rdi, eax
-    call malloc
+    test r12d, r12d
+    jz .half_edges
+    test rax, rax
+    jz .failed
+.half_edges:
+    mov edi, r13d
+    mov esi, HE_SIZE
+    call calloc
     mov [rbx + DCEL_HEDGES], rax
-
-    mov eax, r14d
-    imul eax, FACE_SIZE
-    movsxd rdi, eax
-    call malloc
+    test r13d, r13d
+    jz .faces
+    test rax, rax
+    jz .failed
+.faces:
+    mov edi, r14d
+    mov esi, FACE_SIZE
+    call calloc
     mov [rbx + DCEL_FACES], rax
-
+    test r14d, r14d
+    jz .ready
+    test rax, rax
+    jz .failed
+.ready:
     mov rax, rbx
+    jmp .done
+.failed:
+    mov rdi, rbx
+    call dcel_free
+.invalid:
+    xor eax, eax
+.done:
     add rsp, 16
     pop r14
     pop r13
@@ -91,16 +110,21 @@ dcel_add_vertex:
     mov rbp, rsp
 
     mov eax, [rdi + DCEL_NV]
+    cmp eax, [rdi + DCEL_CAP_V]
+    jae .full
     mov rcx, [rdi + DCEL_VERTS]
 
     mov r8d, eax
-    imul r8d, VERT_SIZE
-    movsxd r8, r8d
+    imul r8, VERT_SIZE
 
     mov qword [rcx + r8 + VERT_INC], 0
     mov dword [rcx + r8 + VERT_ID], eax
     inc dword [rdi + DCEL_NV]
 
+    pop rbp
+    ret
+.full:
+    mov eax, -1
     pop rbp
     ret
 
@@ -109,16 +133,21 @@ dcel_add_face:
     mov rbp, rsp
 
     mov eax, [rdi + DCEL_NF]
+    cmp eax, [rdi + DCEL_CAP_F]
+    jae .full
     mov rcx, [rdi + DCEL_FACES]
 
     mov r8d, eax
-    imul r8d, FACE_SIZE
-    movsxd r8, r8d
+    imul r8, FACE_SIZE
 
     mov qword [rcx + r8 + FACE_EDGE], 0
     mov dword [rcx + r8 + FACE_ID], eax
     inc dword [rdi + DCEL_NF]
 
+    pop rbp
+    ret
+.full:
+    mov eax, -1
     pop rbp
     ret
 
@@ -130,6 +159,14 @@ dcel_add_edge_pair:
     push r13
     sub rsp, 8
 
+    cmp esi, [rdi + DCEL_NV]
+    jae .done
+    cmp edx, [rdi + DCEL_NV]
+    jae .done
+    mov eax, [rdi + DCEL_CAP_HE]
+    sub eax, [rdi + DCEL_NHE]
+    cmp eax, 2
+    jl .done
     mov rbx, rdi
     mov r12d, esi
     mov r13d, edx
@@ -138,14 +175,12 @@ dcel_add_edge_pair:
     mov rcx, [rbx + DCEL_HEDGES]
 
     mov r8d, eax
-    imul r8d, HE_SIZE
-    movsxd r8, r8d
+    imul r8, HE_SIZE
     lea r9, [rcx + r8]
 
     mov r10d, eax
     inc r10d
-    imul r10d, HE_SIZE
-    movsxd r10, r10d
+    imul r10, HE_SIZE
     lea r11, [rcx + r10]
 
     mov dword [r9 + HE_ID], eax
@@ -154,16 +189,22 @@ dcel_add_edge_pair:
 
     mov rdx, [rbx + DCEL_VERTS]
     mov ecx, r12d
-    imul ecx, VERT_SIZE
-    movsxd rcx, ecx
+    imul rcx, VERT_SIZE
     lea rdi, [rdx + rcx]
     mov [r9 + HE_ORIGIN], rdi
+    cmp qword [rdi + VERT_INC], 0
+    jne .second
+    mov [rdi + VERT_INC], r9
+.second:
 
     mov ecx, r13d
-    imul ecx, VERT_SIZE
-    movsxd rcx, ecx
+    imul rcx, VERT_SIZE
     lea rdi, [rdx + rcx]
     mov [r11 + HE_ORIGIN], rdi
+    cmp qword [rdi + VERT_INC], 0
+    jne .twins
+    mov [rdi + VERT_INC], r11
+.twins:
 
     mov [r9 + HE_TWIN], r11
     mov [r11 + HE_TWIN], r9
@@ -175,6 +216,7 @@ dcel_add_edge_pair:
     mov qword [r11 + HE_FACE], 0
 
     add dword [rbx + DCEL_NHE], 2
+.done:
 
     add rsp, 8
     pop r13
@@ -214,6 +256,8 @@ main:
     mov esi, 16
     mov edx, 4
     call dcel_create
+    test rax, rax
+    jz .failure
     mov rbx, rax
 
     mov rdi, rbx
@@ -252,14 +296,14 @@ main:
     xor eax, eax
     call printf
 
-    lea rdi, [rel fmt_pass]
-    xor eax, eax
-    call printf
-
     mov rdi, rbx
     call dcel_free
 
     xor eax, eax
+    jmp .done
+.failure:
+    mov eax, 1
+.done:
     add rsp, 8
     pop rbx
     pop rbp

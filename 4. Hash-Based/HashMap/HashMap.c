@@ -23,30 +23,44 @@ static unsigned int hash(const char *key, int cap) {
 }
 
 HashMap *hashmap_create(int capacity) {
-    HashMap *m = malloc(sizeof(HashMap));
+    if (capacity <= 0) return NULL;
+    HashMap *m = malloc(sizeof(*m));
+    if (!m) return NULL;
     m->capacity = capacity;
     m->size = 0;
     m->buckets = calloc(capacity, sizeof(Entry *));
+    if (!m->buckets) {
+        free(m);
+        return NULL;
+    }
     return m;
 }
 
-void hashmap_put(HashMap *m, const char *key, int value) {
+int hashmap_put(HashMap *m, const char *key, int value) {
+    if (!m || !key) return 0;
     unsigned int idx = hash(key, m->capacity);
     for (Entry *e = m->buckets[idx]; e; e = e->next) {
         if (strcmp(e->key, key) == 0) {
             e->value = value;
-            return;
+            return 1;
         }
     }
     Entry *e = malloc(sizeof(Entry));
+    if (!e) return 0;
     e->key = strdup(key);
+    if (!e->key) {
+        free(e);
+        return 0;
+    }
     e->value = value;
     e->next = m->buckets[idx];
     m->buckets[idx] = e;
     m->size++;
+    return 1;
 }
 
 int hashmap_get(HashMap *m, const char *key, int *out) {
+    if (!m || !key || !out) return 0;
     unsigned int idx = hash(key, m->capacity);
     for (Entry *e = m->buckets[idx]; e; e = e->next) {
         if (strcmp(e->key, key) == 0) {
@@ -58,6 +72,7 @@ int hashmap_get(HashMap *m, const char *key, int *out) {
 }
 
 int hashmap_contains(HashMap *m, const char *key) {
+    if (!m || !key) return 0;
     unsigned int idx = hash(key, m->capacity);
     for (Entry *e = m->buckets[idx]; e; e = e->next)
         if (strcmp(e->key, key) == 0) return 1;
@@ -65,6 +80,7 @@ int hashmap_contains(HashMap *m, const char *key) {
 }
 
 int hashmap_remove(HashMap *m, const char *key) {
+    if (!m || !key) return 0;
     unsigned int idx = hash(key, m->capacity);
     Entry **curr = &m->buckets[idx];
     while (*curr) {
@@ -93,6 +109,7 @@ void hashmap_print(HashMap *m) {
 }
 
 void hashmap_free(HashMap *m) {
+    if (!m) return;
     for (int i = 0; i < m->capacity; i++) {
         Entry *e = m->buckets[i];
         while (e) {
@@ -108,6 +125,7 @@ void hashmap_free(HashMap *m) {
 
 int main(void) {
     HashMap *m = hashmap_create(8);
+    if (!m) return EXIT_FAILURE;
 
     hashmap_put(m, "alice", 100);
     hashmap_put(m, "bob", 200);
@@ -121,14 +139,11 @@ int main(void) {
     printf("Contains alice: %d\n", hashmap_contains(m, "alice"));
     printf("Contains frank: %d\n", hashmap_contains(m, "frank"));
 
-    hashmap_get(m, "bob", &val);
-    printf("bob -> %d\n", val);
-    hashmap_get(m, "eve", &val);
-    printf("eve -> %d\n", val);
+    if (hashmap_get(m, "bob", &val)) printf("bob -> %d\n", val);
+    if (hashmap_get(m, "eve", &val)) printf("eve -> %d\n", val);
 
     hashmap_put(m, "bob", 999);
-    hashmap_get(m, "bob", &val);
-    printf("bob updated -> %d\n", val);
+    if (hashmap_get(m, "bob", &val)) printf("bob updated -> %d\n", val);
 
     printf("Size before remove: %d\n", m->size);
     hashmap_remove(m, "charlie");
@@ -136,6 +151,5 @@ int main(void) {
     printf("Contains charlie: %d\n", hashmap_contains(m, "charlie"));
 
     hashmap_free(m);
-    printf("All tests passed.\n");
     return 0;
 }

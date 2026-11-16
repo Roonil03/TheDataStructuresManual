@@ -13,7 +13,7 @@ Digraph struct (24 bytes):
 └──────────┴──────────┴──────────┴──────────┴────────┬─────────┘
                                                      │
                                                      ▼
-Edge array (contiguous, E × 12 bytes):
+Edge array (contiguous, cap × 12 bytes):
 ┌─────────────────┬─────────────────┬─────────────────┬─────┐
 │  Edge 0 (12B)   │  Edge 1 (12B)   │  Edge 2 (12B)   │ ... │
 │ src | dst | wt  │ src | dst | wt  │ src | dst | wt  │     │
@@ -22,7 +22,7 @@ Edge array (contiguous, E × 12 bytes):
 
 - **Edge access:** `edges_ptr + i * 12` gives direct offset to edge *i*.
 - **Dynamic growth:** When `E == cap`, the edge array is `realloc`'d to `2 × cap × sizeof(Edge)`. This amortizes insertion cost.
-- **Deletion:** Swap-with-last — the removed edge is overwritten by the final edge, then `E` is decremented. O(1) removal, but breaks insertion order.
+- **Deletion:** Swap-with-last — the removed edge is overwritten by the final edge, then `E` is decremented. Finding the edge takes O(E), then the swap takes O(1) and can change iteration order.
 
 The edge list stores **no per-vertex structure**. Vertex queries (degree, adjacency) require a linear scan of the entire edge array.
 
@@ -40,7 +40,7 @@ The edge list stores **no per-vertex structure**. Vertex queries (degree, adjace
 | Remove Edge  | O(E)       | Linear scan + swap-with-last   |
 | Has Edge     | O(E)       | Linear scan                    |
 | In/Out Degree| O(E)       | Full edge array scan           |
-| DFS / BFS    | O(V × E)   | Edge list requires repeated scan per vertex |
-| **Space**    | **O(E)**   | 12 bytes per edge + 24 byte header |
+| DFS / topological sort (C) | O(V + V × E) | Each visited vertex scans the edge list. The sort reports a cycle if a vertex on the current DFS path is revisited. |
+| **Space**    | **O(cap)**   | 12 bytes per allocated slot + 24 byte header |
 
 *For adjacency-heavy workloads (frequent neighbor queries), an adjacency list or matrix representation is preferred. The edge list excels when the primary operations are iteration over all edges (e.g., Bellman-Ford, Kruskal's).*

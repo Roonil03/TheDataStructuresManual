@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
+#include <stdint.h>
+#include <limits.h>
 
 typedef struct {
     int src, dst, weight;
@@ -11,19 +12,35 @@ typedef struct {
     Edge *edges;
 } Digraph;
 
+static int valid_vertex(const Digraph *g, int v) {
+    return g && v >= 0 && v < g->V;
+}
+
 Digraph *digraph_create(int V, int cap) {
-    Digraph *g = malloc(sizeof(Digraph));
+    if (V < 0 || cap < 0) return NULL;
+    Digraph *g = malloc(sizeof(*g));
+    if (!g) return NULL;
     g->V = V;
     g->E = 0;
     g->cap = cap;
-    g->edges = malloc(cap * sizeof(Edge));
+    g->edges = calloc(cap, sizeof(Edge));
+    if (!g->edges && cap) {
+        free(g);
+        return NULL;
+    }
     return g;
 }
 
 void digraph_add_edge(Digraph *g, int src, int dst, int weight) {
+    if (!valid_vertex(g, src) || !valid_vertex(g, dst)) return;
     if (g->E == g->cap) {
-        g->cap = g->cap == 0 ? 1 : g->cap * 2;
-        g->edges = realloc(g->edges, g->cap * sizeof(Edge));
+        if (g->cap > INT_MAX / 2) return;
+        int cap = g->cap ? g->cap * 2 : 1;
+        if ((size_t)cap > SIZE_MAX / sizeof(Edge)) return;
+        Edge *edges = realloc(g->edges, (size_t)cap * sizeof(*edges));
+        if (!edges) return;
+        g->edges = edges;
+        g->cap = cap;
     }
     g->edges[g->E].src = src;
     g->edges[g->E].dst = dst;
@@ -32,6 +49,7 @@ void digraph_add_edge(Digraph *g, int src, int dst, int weight) {
 }
 
 int digraph_has_edge(Digraph *g, int src, int dst) {
+    if (!valid_vertex(g, src) || !valid_vertex(g, dst)) return 0;
     for (int i = 0; i < g->E; i++)
         if (g->edges[i].src == src && g->edges[i].dst == dst)
             return 1;
@@ -39,6 +57,7 @@ int digraph_has_edge(Digraph *g, int src, int dst) {
 }
 
 void digraph_remove_edge(Digraph *g, int src, int dst) {
+    if (!valid_vertex(g, src) || !valid_vertex(g, dst)) return;
     for (int i = 0; i < g->E; i++) {
         if (g->edges[i].src == src && g->edges[i].dst == dst) {
             g->edges[i] = g->edges[--g->E];
@@ -48,6 +67,7 @@ void digraph_remove_edge(Digraph *g, int src, int dst) {
 }
 
 int digraph_out_degree(Digraph *g, int v) {
+    if (!valid_vertex(g, v)) return 0;
     int count = 0;
     for (int i = 0; i < g->E; i++)
         if (g->edges[i].src == v) count++;
@@ -55,6 +75,7 @@ int digraph_out_degree(Digraph *g, int v) {
 }
 
 int digraph_in_degree(Digraph *g, int v) {
+    if (!valid_vertex(g, v)) return 0;
     int count = 0;
     for (int i = 0; i < g->E; i++)
         if (g->edges[i].dst == v) count++;
@@ -70,33 +91,46 @@ static void dfs_util(Digraph *g, int v, int *visited) {
 }
 
 void digraph_dfs(Digraph *g, int start) {
+    if (!valid_vertex(g, start)) return;
     int *visited = calloc(g->V, sizeof(int));
-    dfs_util(g, start, visited);
+    if (visited) dfs_util(g, start, visited);
     free(visited);
 }
 
-static void topo_util(Digraph *g, int v, int *visited, int *stack, int *top) {
-    visited[v] = 1;
-    for (int i = 0; i < g->E; i++)
-        if (g->edges[i].src == v && !visited[g->edges[i].dst])
-            topo_util(g, g->edges[i].dst, visited, stack, top);
+static int topo_util(Digraph *g, int v, int *state, int *stack, int *top) {
+    state[v] = 1;
+    for (int i = 0; i < g->E; i++) {
+        if (g->edges[i].src != v) continue;
+        int dst = g->edges[i].dst;
+        if (state[dst] == 1) return 0;
+        if (!state[dst] && !topo_util(g, dst, state, stack, top)) return 0;
+    }
+    state[v] = 2;
     stack[(*top)++] = v;
+    return 1;
 }
 
 void digraph_topological_sort(Digraph *g) {
-    int *visited = calloc(g->V, sizeof(int));
-    int *stack = malloc(g->V * sizeof(int));
+    if (!g || !g->V) return;
+    int *state = calloc(g->V, sizeof(*state));
+    int *stack = calloc(g->V, sizeof(*stack));
     int top = 0;
-    for (int i = 0; i < g->V; i++)
-        if (!visited[i])
-            topo_util(g, i, visited, stack, &top);
-    for (int i = top - 1; i >= 0; i--)
-        printf("%d ", stack[i]);
-    free(visited);
+    if (state && stack) {
+        for (int i = 0; i < g->V; i++) {
+            if (!state[i] && !topo_util(g, i, state, stack, &top)) {
+                printf("Graph contains a cycle");
+                top = 0;
+                break;
+            }
+        }
+        while (top) printf("%d ", stack[--top]);
+    }
+    free(state);
     free(stack);
 }
 
 void digraph_print(Digraph *g) {
+    if (!g) return;
     printf("Digraph: %d vertices, %d edges\n", g->V, g->E);
     for (int i = 0; i < g->E; i++)
         printf("  %d -> %d (w=%d)\n",
@@ -104,12 +138,14 @@ void digraph_print(Digraph *g) {
 }
 
 void digraph_free(Digraph *g) {
+    if (!g) return;
     free(g->edges);
     free(g);
 }
 
 int main(void) {
     Digraph *g = digraph_create(6, 4);
+    if (!g) return EXIT_FAILURE;
 
     digraph_add_edge(g, 5, 2, 1);
     digraph_add_edge(g, 5, 0, 1);
@@ -138,6 +174,5 @@ int main(void) {
     printf("Edge count: %d\n", g->E);
 
     digraph_free(g);
-    printf("All tests passed.\n");
     return 0;
 }

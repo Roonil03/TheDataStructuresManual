@@ -5,7 +5,6 @@ section .data
     fmt_nl:      db 10, 0
     fmt_has:     db "Edge %d->%d exists: %d", 10, 0
     fmt_outdeg:  db "Out-degree of %d: %d", 10, 0
-    fmt_pass:    db "All tests passed.", 10, 0
 
 ADJL_V       equ 0
 ADJL_HEADS   equ 8
@@ -27,19 +26,34 @@ adjlist_create:
     push r12
     sub rsp, 16
 
+    test edi, edi
+    js .invalid
     mov r12d, edi
 
     mov edi, ADJL_SIZE
     call malloc
+    test rax, rax
+    jz .done
     mov rbx, rax
     mov dword [rbx + ADJL_V], r12d
 
     movsxd rdi, r12d
     mov esi, 8
     call calloc
+    test rax, rax
+    jnz .storage_ready
+    test r12d, r12d
+    jz .storage_ready
+    mov rdi, rbx
+    call free
+.invalid:
+    xor eax, eax
+    jmp .done
+.storage_ready:
     mov [rbx + ADJL_HEADS], rax
 
     mov rax, rbx
+.done:
     add rsp, 16
     pop r12
     pop rbx
@@ -55,6 +69,10 @@ adjlist_add_edge:
     push r14
     sub rsp, 16
 
+    cmp esi, [rdi + ADJL_V]
+    jae .done
+    cmp edx, [rdi + ADJL_V]
+    jae .done
     mov rbx, rdi
     mov r12d, esi
     mov r13d, edx
@@ -62,6 +80,8 @@ adjlist_add_edge:
 
     mov edi, NODE_SIZE
     call malloc
+    test rax, rax
+    jz .done
 
     mov dword [rax + NODE_DST], r13d
     mov dword [rax + NODE_WEIGHT], r14d
@@ -72,6 +92,7 @@ adjlist_add_edge:
     mov [rax + NODE_NEXT], rdx
     mov [rcx + r8*8], rax
 
+.done:
     add rsp, 16
     pop r14
     pop r13
@@ -81,6 +102,8 @@ adjlist_add_edge:
     ret
 
 adjlist_has_edge:
+    cmp esi, [rdi + ADJL_V]
+    jae .has_not_found
     mov rax, [rdi + ADJL_HEADS]
     movsxd rcx, esi
     mov rax, [rax + rcx*8]
@@ -102,6 +125,9 @@ adjlist_has_edge:
     ret
 
 adjlist_out_degree:
+    xor ecx, ecx
+    cmp esi, [rdi + ADJL_V]
+    jae .deg_done
     mov rax, [rdi + ADJL_HEADS]
     movsxd rcx, esi
     mov rax, [rax + rcx*8]
@@ -235,6 +261,8 @@ main:
 
     mov edi, 5
     call adjlist_create
+    test rax, rax
+    jz .failure
     mov rbx, rax
 
     mov rdi, rbx
@@ -307,14 +335,14 @@ main:
     xor eax, eax
     call printf
 
-    lea rdi, [rel fmt_pass]
-    xor eax, eax
-    call printf
-
     mov rdi, rbx
     call adjlist_free
 
     xor eax, eax
+    jmp .done
+.failure:
+    mov eax, 1
+.done:
     add rsp, 8
     pop rbx
     pop rbp

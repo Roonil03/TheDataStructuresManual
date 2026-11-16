@@ -39,5 +39,5 @@ Flat array (V × V × 4 bytes, row-major):
 | Remove Edge   | O(1)   | Set entry to zero        |
 | Has Edge      | O(1)   | Direct array read        |
 | Get Neighbors | O(V)   | Scan entire row          |
-| BFS / DFS     | O(V²)  | Must scan all rows       |
+| BFS (C)       | O(V²)  | Scans the row of each reached vertex |
 | **Space**     | **O(V²)** | 4V² bytes for int matrix |
