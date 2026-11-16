@@ -1,5 +1,21 @@
 # B-Tree
 
+## Included programs
+
+`BTree.c` reads the minimum degree `t` (at least 2), a nonnegative key count, and that many integers. It splits full nodes during insertion and prints inorder traversal, retaining duplicates. Every non-root node holds `t-1` through `2t-1` keys; all leaves remain at one depth. Search and deletion are not implemented.
+
+`BTree.asm` reads the same format, retains duplicates, and constructs B-tree nodes sized by `t`. It splits full children before descent, grows the root when needed, prints inorder traversal, and frees the tree. Both implementations maintain node occupancy and equal leaf depth; neither implements search or deletion. The C program also requires `t <= INT_MAX / 2` to keep its capacity arithmetic in range.
+
+Build from this directory (outputs stay in `/tmp`):
+
+```sh
+gcc -std=c11 -Wall -Wextra "BTree.c" -o /tmp/btree
+nasm -f elf64 "BTree.asm" -o /tmp/tree.o
+gcc -no-pie /tmp/tree.o -o /tmp/tree-asm
+```
+
+The operation bounds below describe B-trees in general. For these insertion examples, a node scan/split costs O(t), so insertion is O(t log_t n), or O(log n) for fixed `t`. Allocated space is O(n + t), including a partially filled root.
+
 ## Introduction to B-Trees
 A B-Tree is a **self-balancing tree data structure** that maintains sorted data and allows efficient search, sequential access, insertion, and deletion operations. Unlike binary trees, B-Trees are optimized for systems that read and write large blocks of data, making them fundamental for **database systems** and **file systems**. Each node can contain multiple keys and have more than two children, which minimizes disk I/O operations by reducing tree height.
 
@@ -57,7 +73,7 @@ A B-Tree is a **self-balancing tree data structure** that maintains sorted data 
 
 ## B-Tree Variants
 1. **B+ Tree**:
-   - Keys stored only in leaf nodes
+   - Data records stored only in leaf nodes; internal nodes contain separator keys
    - Leaf nodes linked sequentially
    - Enhanced performance for range queries
 2. **B* Tree**:

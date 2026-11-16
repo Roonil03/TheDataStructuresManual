@@ -1,18 +1,34 @@
 # B+ Tree
 
+## Included programs
+
+`B+Tree.c` reads a nonnegative key count followed by that many integers. It stores distinct keys in an order-3 B+ tree, propagates leaf/internal splits to the root, links leaves, and prints keys in ascending order. Each node holds at most two keys after insertion; arrays reserve a temporary overflow slot. Search is used internally to find a leaf; deletion and a public range-query interface are not implemented.
+
+`B+Tree.asm` reads the same count-and-keys format and retains all values, including duplicates. It builds an order-3 B+ tree, recursively propagates leaf/internal splits, and traverses the linked leaves to print sorted output. Every node holds one or two keys after insertion, all leaves have equal depth, and internal keys are copies of the smallest keys in their right subtrees. Both implementations free their nodes before returning. Search, deletion, and a public range-query interface are not implemented in the assembly example.
+
+For this fixed order, both programs take O(log n) time per insertion, O(n) time for a full leaf traversal, and O(n) space. The general operations below include search and deletion as background.
+
+Build from this directory (outputs stay in `/tmp`):
+
+```sh
+gcc -std=c11 -Wall -Wextra "B+Tree.c" -o /tmp/bplustree
+nasm -f elf64 "B+Tree.asm" -o /tmp/tree.o
+gcc -no-pie /tmp/tree.o -o /tmp/tree-asm
+```
+
 ## Overview of B+ Trees
 A **B+ Tree** is a specialized self-balancing tree structure optimized for systems that handle large volumes of data with frequent read/write operations. Designed as an extension of B-Trees, B+ Trees excel in database indexing and file systems where disk I/O minimization is critical. Unlike standard B-Trees, B+ Trees store all data in leaf nodes with internal nodes serving solely as index navigators, enabling highly efficient range queries and sequential access.
 
 ## Key Properties
 1. **Structure Rules**:
-   - All data resides exclusively in **leaf nodes**
+   - All data records reside exclusively in **leaf nodes**; internal separator keys may duplicate leaf keys
    - Internal nodes contain only keys and child pointers
    - Leaf nodes are linked sequentially for ordered traversal
-   - Root node has between 1 and `m` children (where `m` = tree order)
+   - A non-leaf root has between 2 and `m` children; an empty tree may have no root (where `m` = tree order)
 
 2. **Capacity Constraints**:
    - Internal nodes: `⌈m/2⌉` to `m` children
-   - Leaf nodes: `⌈m/2⌉` to `m` data entries
+   - Leaf capacity depends on the chosen convention; this order-3 implementation stores 1–2 keys per non-root leaf
    - Root exempt from minimum constraints
 
 3. **Balance Guarantee**:
@@ -53,12 +69,15 @@ def search(key, node):
 4. Rebalance tree upward from deletion point
 
 ## Complexity Analysis
+
+The O(log_m n) operation descriptions count tree levels (node accesses). The CPU bounds below include linear scans and shifts within a node; with the fixed order 3 used here, they reduce to O(log n).
+
 | Operation | Time Complexity | Space Complexity |
 |-----------|-----------------|------------------|
-| Search    | O(logm n) | O(1)            |
-| Insert    | O(logm n) | O(m)            |
-| Delete    | O(logm n) | O(m)            |
-| Range Query | O(logm n + k) | O(1)        |
+| Search    | O(m log_m n) with linear node scans | O(1) |
+| Insert    | O(m log_m n) | O(log_m n) recursion |
+| Delete    | O(m log_m n) | O(log_m n) recursion |
+| Range Query | O(m log_m n + k) | O(1)        |
 
 *Where `n` = number of elements, `m` = tree order, `k` = keys in range*
 
@@ -120,7 +139,7 @@ def search(key, node):
 | **Data Storage** | Only in leaf nodes          | All nodes               |
 | **Leaf Linkage** | Linked sequential access    | No leaf connections     |
 | **Height**       | Lower for same data volume  | Slightly higher         |
-| **Range Queries**| Optimal (O(k))             | Inefficient (O(k log n))|
+| **Range Queries**| Optimal (O(k))             | O(log n + k) with ordered traversal|
 | **Point Queries**| Slightly slower            | Faster                  |
 | **Disk Usage**   | More efficient              | Less efficient          |
 
