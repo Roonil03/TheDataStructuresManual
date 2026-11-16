@@ -1,51 +1,36 @@
-# Persistent Data Structures
+# Persistent Stack
 
-A data structure where modifications produce new versions without destroying previous ones. This implementation demonstrates **partial persistence** via a persistent stack using structural sharing (node reuse across versions).
+`PersistentDataStructures.c` demonstrates a **fully persistent stack**: push and pop can branch from any retained version, and all older versions remain accessible. Version 0 is empty. Each successful modification appends a version and returns its index.
 
-## Memory Mechanics
+## API and ownership
 
+- `pstack_push(ps, version, value)` creates one immutable node whose `next` points to the source version's top.
+- `pstack_pop(ps, version, out_value)` writes the removed value and creates a version pointing to the shared tail. It does not modify or free the source node.
+- `pstack_peek` and `pstack_size` read any version.
+- Invalid version indices return `-1`; empty pop, null pop output, and empty peek also return `-1`. Peek's sentinel is ambiguous with a stored value of `-1`; use `pstack_size` to determine emptiness.
+
+A growable array stores `(top, size, owns_top)` records. Only versions created by push own their newly allocated top node. Pop versions share existing nodes and own none. This lets `pstack_free` free each push-owned node exactly once in a single pass through versions, without traversing shared tails or deduplicating addresses. Individual versions cannot be deleted.
+
+On a common ABI with 4-byte integers and 8-byte pointers, `PNode` and `PStack` are each 16 bytes; sizes and padding are platform-dependent. The version array reserves geometric capacity beyond its current length.
+
+| Operation | Time |
+| :-- | :-- |
+| Push / pop | O(1) amortized; O(v) when the version array grows |
+| Peek / size / version access | O(1) |
+| Print one version | O(stack size) |
+| Print all versions | O(v + sum of version sizes) |
+| Destroy all versions | O(v) |
+| Stored space | O(v + p) |
+
+Here `v` is the number of versions and `p` the number of pushes. Allocation or version-capacity failure prints an error and terminates. The entire history remains allocated until `pstack_free`, even after a pop creates an empty version.
+
+This example illustrates immutable structural sharing useful in undo histories and functional data structures. It implements a stack, rather than a general persistent container framework.
+
+## Run
+
+```sh
+cc -std=c11 -Wall -Wextra -Wpedantic PersistentDataStructures.c -o /tmp/persistent-stack
+/tmp/persistent-stack
 ```
-PersistentStack struct:
-┌──────────────────┬──────────────┬──────────┐
-│ versions_ptr (8) │ num_vers (4) │ cap (4)  │
-└────────┬─────────┴──────────────┴──────────┘
-         │
-         ▼
-Version array (num_versions × PStack, 16 bytes each):
-┌────────────────┬────────────────┬────────────────┐
-│ v0: top=NULL   │ v1: top=──┐   │ v2: top=──┐   │...
-│     size=0     │     size=1 │   │     size=2 │   │
-└────────────────┴────────────┼───┴────────────┼───┘
-                              │                │
-    Shared node chain:        ▼                ▼
-                           [Node:20]──→[Node:10]──→ NULL
-                              ↑
-    v3: top ──→ [Node:30] ────┘
 
-    v4 (branched from v1):
-    v4: top ──→ [Node:99] ──→ [Node:10] ──→ NULL
-                                  ↑
-                            (same node as v1's)
-```
-
-- **Structural sharing:** Push creates one new node and points its `next` to the existing top of the source version. The old version's chain is untouched. This means versions share tail nodes.
-- **Version array:** A `realloc`-growable array of `(top_ptr, size)` pairs (16 bytes each). Each version is an immutable snapshot — only the version array grows.
-- **Pop without destruction:** Pop creates a new version pointing to `top->next` of the source. The source version's `top` pointer is unchanged.
-- **Memory cost:** Each push allocates exactly one 16-byte node. Shared tails avoid duplication. `n` pushes from a single lineage use `n` nodes total, not `n²`.
-- **Garbage collection challenge:** Freeing requires deduplication — nodes shared across versions must only be freed once. The implementation collects all unique node pointers before freeing.
-
-## Uses
-
-- **Undo/redo systems:** Text editors and IDEs maintain version history; each edit creates a new version, enabling arbitrary undo depth.
-- **Functional programming runtimes:** Immutable data structures in Haskell, Clojure, and Scala use persistent trees with structural sharing.
-- **Version control internals:** Git's object model is a persistent data structure — commits reference shared tree/blob objects.
-
-## Complexities
-
-| Operation     | Time   | Notes                              |
-|:--------------|:-------|:-----------------------------------|
-| Push (new ver)| O(1)   | Allocate 1 node + append version   |
-| Pop (new ver) | O(1)   | Repoint top + append version       |
-| Peek          | O(1)   | Read top of any version            |
-| Access ver k  | O(1)   | Direct array index                 |
-| **Space**     | **O(total ops)** | 1 node per push, 16B per version |
+The demonstration branches from an older version and prints unchanged history. It is not a comprehensive automated test suite.

@@ -1,8 +1,19 @@
-#define _GNU_SOURCE
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <limits.h>
+#include <stdint.h>
 
+static void *checked_alloc(size_t size) {
+    void *p = malloc(size);
+    if (!p) {
+        fputs("Allocation failed\n", stderr);
+        exit(EXIT_FAILURE);
+    }
+    return p;
+}
+
+/* Sorted suffix indices, inverse ranks, and adjacent longest common prefixes. */
 typedef struct {
     char *text;
     int n;
@@ -11,15 +22,26 @@ typedef struct {
     int *lcp;
 } SuffixArray;
 
-static int cmp_suffix(const void *a, const void *b, void *arg) {
-    const char *text = (const char *)arg;
-    return strcmp(text + *(const int *)a, text + *(const int *)b);
+typedef struct {
+    const char *suffix;
+    int index;
+} SuffixRef;
+
+static int cmp_suffix(const void *a, const void *b) {
+    const SuffixRef *left = a, *right = b;
+    return strcmp(left->suffix, right->suffix);
 }
 
 static void build_sa(SuffixArray *s) {
-    for (int i = 0; i < s->n; i++)
-        s->sa[i] = i;
-    qsort_r(s->sa, s->n, sizeof(int), cmp_suffix, s->text);
+    if (!s->n) return;
+    SuffixRef *refs = checked_alloc((size_t)s->n * sizeof *refs);
+    for (int i = 0; i < s->n; i++) {
+        refs[i].suffix = s->text + i;
+        refs[i].index = i;
+    }
+    qsort(refs, (size_t)s->n, sizeof *refs, cmp_suffix);
+    for (int i = 0; i < s->n; i++) s->sa[i] = refs[i].index;
+    free(refs);
 }
 
 static void build_rank(SuffixArray *s) {
@@ -33,29 +55,33 @@ static void build_lcp(SuffixArray *s) {
     for (int i = 0; i < s->n; i++) {
         if (s->rank[i] == 0) { k = 0; continue; }
         int j = s->sa[s->rank[i] - 1];
-        while (i + k < s->n && j + k < s->n && s->text[i + k] == s->text[j + k])
+        while (k < s->n - i && k < s->n - j && s->text[i + k] == s->text[j + k])
             k++;
         s->lcp[s->rank[i]] = k;
         if (k) k--;
     }
-    s->lcp[0] = 0;
+    if (s->n) s->lcp[0] = 0;
 }
 
 SuffixArray *sa_create(const char *text) {
-    SuffixArray *s = malloc(sizeof(SuffixArray));
-    s->n = strlen(text);
-    s->text = malloc(s->n + 1);
+    if (!text) return NULL;
+    size_t len = strlen(text);
+    if (len > INT_MAX || len > SIZE_MAX / sizeof(SuffixRef)) return NULL;
+    SuffixArray *s = checked_alloc(sizeof(SuffixArray));
+    s->n = (int)len;
+    s->text = checked_alloc(len + 1);
     strcpy(s->text, text);
-    s->sa = malloc(s->n * sizeof(int));
-    s->rank = malloc(s->n * sizeof(int));
-    s->lcp = malloc(s->n * sizeof(int));
+    s->sa = checked_alloc((len ? len : 1) * sizeof(int));
+    s->rank = checked_alloc((len ? len : 1) * sizeof(int));
+    s->lcp = checked_alloc((len ? len : 1) * sizeof(int));
     build_sa(s);
     build_lcp(s);
     return s;
 }
 
 int sa_search(SuffixArray *s, const char *pattern) {
-    int plen = strlen(pattern);
+    if (!s || !pattern) return -1;
+    size_t plen = strlen(pattern);
     int lo = 0, hi = s->n - 1;
     while (lo <= hi) {
         int mid = lo + (hi - lo) / 2;
@@ -68,7 +94,8 @@ int sa_search(SuffixArray *s, const char *pattern) {
 }
 
 int sa_count(SuffixArray *s, const char *pattern) {
-    int plen = strlen(pattern);
+    if (!s || !pattern) return 0;
+    size_t plen = strlen(pattern);
     int first = -1, last = -1;
 
     int l = 0, r = s->n - 1;
@@ -106,6 +133,7 @@ void sa_print(SuffixArray *s) {
 }
 
 void sa_free(SuffixArray *s) {
+    if (!s) return;
     free(s->text);
     free(s->sa);
     free(s->rank);
@@ -133,6 +161,6 @@ int main(void) {
     printf("Count 'xyz': %d\n", sa_count(s, "xyz"));
 
     sa_free(s);
-    printf("All tests passed.\n");
+    printf("Demonstration complete.\n");
     return 0;
 }

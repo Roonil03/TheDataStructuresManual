@@ -1,7 +1,17 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include <time.h>
+#include <limits.h>
 
+static void *checked_alloc(size_t size) {
+    void *p = malloc(size);
+    if (!p) {
+        fputs("Allocation failed\n", stderr);
+        exit(EXIT_FAILURE);
+    }
+    return p;
+}
+
+/* Keys form a BST; random priorities form a max-heap. */
 typedef struct TreapNode {
     int key, priority;
     struct TreapNode *left, *right;
@@ -12,7 +22,7 @@ typedef struct {
 } Treap;
 
 static TreapNode *new_node(int key) {
-    TreapNode *n = malloc(sizeof(TreapNode));
+    TreapNode *n = checked_alloc(sizeof(TreapNode));
     n->key = key;
     n->priority = rand();
     n->left = n->right = NULL;
@@ -102,7 +112,7 @@ static void free_tree(TreapNode *root) {
     free(root);
 }
 
-static int verify_bst(TreapNode *root, int lo, int hi) {
+static int verify_bst(TreapNode *root, long long lo, long long hi) {
     if (!root) return 1;
     if (root->key <= lo || root->key >= hi) return 0;
     return verify_bst(root->left, lo, root->key) &&
@@ -131,7 +141,7 @@ int main(void) {
     printf("\n");
 
     printf("Height: %d\n", height(t.root));
-    printf("BST property: %d\n", verify_bst(t.root, -1, 10000));
+    printf("BST property: %d\n", verify_bst(t.root, LLONG_MIN, LLONG_MAX));
     printf("Heap property: %d\n", verify_heap(t.root));
 
     printf("Search 40: %s\n", search(t.root, 40) ? "found" : "not found");
@@ -144,10 +154,10 @@ int main(void) {
     inorder(t.root);
     printf("\n");
     printf("Search 30: %s\n", search(t.root, 30) ? "found" : "not found");
-    printf("BST property: %d\n", verify_bst(t.root, -1, 10000));
+    printf("BST property: %d\n", verify_bst(t.root, LLONG_MIN, LLONG_MAX));
     printf("Heap property: %d\n", verify_heap(t.root));
 
     free_tree(t.root);
-    printf("All tests passed.\n");
+    printf("Demonstration complete.\n");
     return 0;
 }

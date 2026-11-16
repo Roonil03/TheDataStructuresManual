@@ -1,7 +1,17 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include <limits.h>
+#include <stdint.h>
 
+static void *checked_alloc(size_t size) {
+    void *p = malloc(size);
+    if (!p) {
+        fputs("Allocation failed\n", stderr);
+        exit(EXIT_FAILURE);
+    }
+    return p;
+}
+
+/* Array indices define inorder order; values obey the min-heap property. */
 typedef struct CTNode {
     int value, index;
     struct CTNode *left, *right;
@@ -13,7 +23,7 @@ typedef struct {
 } CartesianTree;
 
 static CTNode *new_node(int val, int idx) {
-    CTNode *n = malloc(sizeof(CTNode));
+    CTNode *n = checked_alloc(sizeof(CTNode));
     n->value = val;
     n->index = idx;
     n->left = n->right = NULL;
@@ -21,12 +31,13 @@ static CTNode *new_node(int val, int idx) {
 }
 
 CartesianTree *ct_build(int *arr, int n) {
-    CartesianTree *ct = malloc(sizeof(CartesianTree));
+    if (n < 0 || (n > 0 && !arr) || (size_t)n > SIZE_MAX / sizeof(CTNode *)) return NULL;
+    CartesianTree *ct = checked_alloc(sizeof(CartesianTree));
     ct->n = n;
     ct->root = NULL;
     if (n == 0) return ct;
 
-    CTNode **stack = malloc(n * sizeof(CTNode *));
+    CTNode **stack = checked_alloc((size_t)n * sizeof(CTNode *));
     int top = 0;
 
     for (int i = 0; i < n; i++) {
@@ -133,6 +144,6 @@ int main(void) {
 
     free_tree(ct->root);
     free(ct);
-    printf("All tests passed.\n");
+    printf("Demonstration complete.\n");
     return 0;
 }

@@ -1,42 +1,33 @@
 # Interval Tree
 
-An augmented BST where each node stores an interval `[low, high]` and a `max` field tracking the maximum endpoint in its subtree. Enables efficient overlap queries.
+`IntervalTree.c` implements an unbalanced binary search tree of closed integer intervals `[low, high]`. Each node stores the maximum high endpoint in its subtree. Touching endpoints count as overlapping.
 
-## Memory Mechanics
+## Implementation
 
+`it_insert(root, low, high)` returns the updated root. Lower endpoints order the tree: smaller values go left, equal values go right. Exact duplicate intervals are stored separately. `it_delete` removes one exact `(low, high)` match and updates subtree maxima. Insertion and deletion with `low > high` leave the tree unchanged.
+
+`it_search` returns any overlapping node or `NULL`. It follows one path, using the left subtree's maximum endpoint to decide which branch can contain an overlap. An inverted query returns `NULL`.
+
+`it_search_all(root, low, high, results)` returns the number of overlapping intervals and writes their **low endpoints only** to `results`. The caller must supply room for at least as many integers as there are nodes; the API has no capacity argument. Duplicate intervals produce duplicate results. An inverted query or null output pointer returns zero. Traversal prunes left subtrees using their maxima and right subtrees using the BST ordering, but can still visit all nodes.
+
+`ITNode` has three integers and two pointers, typically 32 bytes with 4-byte integers and 8-byte pointers, including alignment padding. Exact layout is ABI-dependent.
+
+| Operation | Time |
+| :-- | :-- |
+| Insert / delete / find one overlap | O(h), worst O(n) |
+| Find all overlaps / inorder / destruction | O(n) worst case |
+| Stored space | O(n) |
+| Recursive auxiliary space | O(h) |
+
+There is no balancing, so ordered insertions can produce height `h = n`. Recursive operations can exhaust the call stack on deep trees. Allocation failure prints an error and terminates. Pass the final root to `it_free` when done.
+
+Interval trees support scheduling conflict detection, coordinate overlap queries, and similar inclusive-range searches. Balanced variants provide stronger height bounds than this example.
+
+## Run
+
+```sh
+cc -std=c11 -Wall -Wextra -Wpedantic IntervalTree.c -o /tmp/interval-tree
+/tmp/interval-tree
 ```
-ITNode (24 bytes):
-┌──────────┬──────────┬──────────┬──────────┬──────────┐
-│ low (4B) │ high (4B)│ max (4B) │ left*(8B)│right*(8B)│
-└──────────┴──────────┴──────────┴──────────┴──────────┘
 
-Tree ordered by 'low' endpoint (BST), 'max' propagated upward:
-
-         [15,20] max=40
-        /              \
-   [10,30] max=30   [17,19] max=40
-   /     \               \
-[5,20]  [12,15]       [30,40]
-max=20  max=15        max=40
-```
-
-- **Augmented field:** `max = max(high, left->max, right->max)` is recomputed bottom-up after every insert/delete. This costs O(1) per node on the path.
-- **Overlap pruning:** When searching for overlaps with query `[lo,hi]`: if `left->max < lo`, the entire left subtree can be skipped. This prunes the search space based on the augmented max.
-- **BST ordering:** Nodes are ordered by their `low` endpoint. This means intervals with the same `low` value follow insertion order into the right subtree.
-- **Per-node allocation:** Each node is individually `malloc`'d at 24 bytes (with padding, typically 32 bytes due to alignment).
-
-## Uses
-
-- **Scheduling systems:** Detect conflicts in meeting/resource booking by finding overlapping time intervals.
-- **Computational geometry:** Sweep-line algorithms query active intervals during geometric intersection tests.
-- **Genomics:** Map reads to reference genome positions by querying overlapping coordinate ranges.
-
-## Complexities
-
-| Operation       | Average    | Worst  | Notes                           |
-|:----------------|:-----------|:-------|:--------------------------------|
-| Insert          | O(log n)   | O(n)   | BST insert + max update         |
-| Delete          | O(log n)   | O(n)   | BST delete + max update         |
-| Search Overlap  | O(log n)   | O(n)   | Single result, pruned by max    |
-| All Overlaps    | O(k log n) | O(kn)  | k = number of results           |
-| **Space**       | **O(n)**   |        | 24-32 bytes per node            |
+The fixed demonstration inserts intervals, searches for overlaps, and deletes one interval. It is not a comprehensive automated test suite.

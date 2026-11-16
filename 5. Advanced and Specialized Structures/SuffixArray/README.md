@@ -1,46 +1,38 @@
 # Suffix Array
 
-A sorted array of all suffixes of a string, represented as an integer array of starting indices. Paired with an LCP (Longest Common Prefix) array for efficient substring operations.
+`SuffixArray.c` indexes the `n` nonempty suffixes of a copied, null-terminated byte string. `sa[i]` is the starting text index of the ith lexicographically sorted suffix; `rank` is its inverse. `lcp[i]` is the longest common prefix length of suffixes at sorted positions `i - 1` and `i`, with `lcp[0] = 0` when `n > 0`.
 
-## Memory Mechanics
+For `banana`, the arrays are:
 
-```
-SuffixArray struct (40 bytes):
-┌──────────┬──────────┬──────────┬──────────┬──────────┐
-│ text*(8) │  n (4B)  │  sa*(8B) │rank*(8B) │ lcp*(8B) │
-└────┬─────┴──────────┴────┬─────┴────┬─────┴────┬─────┘
-     │                     │          │          │
-     ▼                     ▼          ▼          ▼
-  "banana\0"          [5,3,1,0,4,2] [3,2,5,0,4,1] [0,1,3,0,0,2]
-                       SA array      Rank array    LCP array
-
-For "banana":
-SA[0]=5 → "a"        LCP[0]=0
-SA[1]=3 → "ana"      LCP[1]=1  (shared "a" with prev)
-SA[2]=1 → "anana"    LCP[2]=3  (shared "ana" with prev)
-SA[3]=0 → "banana"   LCP[3]=0
-SA[4]=4 → "na"       LCP[4]=0
-SA[5]=2 → "nana"     LCP[5]=2  (shared "na" with prev)
+```text
+sa:   5 3 1 0 4 2
+rank: 3 2 5 1 4 0
+lcp:  0 1 3 0 0 2
 ```
 
-- **SA array:** `n × 4 bytes`. Each entry is an integer index into the text. Suffixes are not stored explicitly — `text + sa[i]` gives the suffix string. This avoids O(n²) storage.
-- **Rank array:** `n × 4 bytes`. Inverse of SA: `rank[i]` = position of suffix starting at index `i` in the sorted order.
-- **LCP array:** `n × 4 bytes`. Built via Kasai's algorithm in O(n) using the rank array. `lcp[i]` = length of longest common prefix between `SA[i]` and `SA[i-1]`.
-- **Pattern search:** Binary search on SA comparing `text + sa[mid]` with pattern via `strncmp`. O(m log n) where m = pattern length.
+## Implementation and API
 
-## Uses
+Construction uses standard C `qsort` on temporary `(suffix pointer, index)` records, comparing suffixes with `strcmp`; suffix contents are not duplicated. Kasai's algorithm builds the LCP array. An empty input is supported and has zero indexed suffixes. `sa_create(NULL)` or a length exceeding the representable/index-allocation limits returns `NULL`. Allocation failure prints an error and terminates.
 
-- **Full-text search:** Genome databases (BLAST alternatives) use suffix arrays for substring matching across multi-gigabyte sequences.
-- **Data compression:** BWT (Burrows-Wheeler Transform) is derived from the suffix array for use in bzip2-style compressors.
-- **Longest repeated substring:** Found by scanning the LCP array for the maximum value.
+`sa_search(s, pattern)` returns any matching starting index or `-1`. `sa_count` counts all starting positions, including overlapping occurrences, using two binary searches. An empty pattern matches every indexed suffix: its count is `n`, and search returns an arbitrary suffix position if `n > 0`; the trailing empty suffix at index `n` is not represented. Search/count require null-terminated patterns; null arguments return `-1`/`0` respectively. Embedded null bytes cannot be indexed.
 
-## Complexities
+| Operation | Time |
+| :-- | :-- |
+| Construction comparisons | O(n) per comparison; typically O(n² log n) total with O(n log n) sorting |
+| LCP construction | O(n) |
+| Pattern search / count | O(m log n), or O(log n) for an empty pattern |
+| Destruction | O(1) allocator calls |
+| Stored and temporary space | O(n) |
 
-| Operation               | Time         | Notes                        |
-|:------------------------|:-------------|:-----------------------------|
-| Construction (naive)    | O(n² log n)  | Sort + strcmp per comparison  |
-| Construction (SA-IS)    | O(n)         | Linear-time algorithm        |
-| LCP Construction        | O(n)         | Kasai's algorithm            |
-| Pattern Search          | O(m log n)   | Binary search + strncmp      |
-| Pattern Count           | O(m log n)   | Two binary searches          |
-| **Space**               | **O(n)**     | 3 × 4n bytes arrays + text   |
+`qsort`'s exact complexity is C-library-dependent; ISO C does not specify a worst-case sorting bound. `m` is pattern length. Stored space includes the copied text, three integer arrays, and the wrapper; construction additionally allocates O(n) temporary suffix records. `sa_free` frees all owned allocations and accepts `NULL`.
+
+Suffix arrays support substring lookup and repeated-substring analysis; linear-time construction and LCA/RMQ acceleration are not implemented.
+
+## Run
+
+```sh
+cc -std=c11 -Wall -Wextra -Wpedantic SuffixArray.c -o /tmp/suffix-array
+/tmp/suffix-array
+```
+
+The fixed demonstration indexes `banana` and prints several searches/counts. It is not a comprehensive automated test suite.

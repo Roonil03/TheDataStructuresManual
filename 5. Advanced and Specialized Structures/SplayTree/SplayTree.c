@@ -1,13 +1,23 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+static void *checked_alloc(size_t size) {
+    void *p = malloc(size);
+    if (!p) {
+        fputs("Allocation failed\n", stderr);
+        exit(EXIT_FAILURE);
+    }
+    return p;
+}
+
+/* Splaying moves an accessed key or the final search-path node to the root. */
 struct node {
     int key;
     struct node *left, *right;
 };
 
 struct node* newNode(int key) {
-    struct node* node = (struct node*) malloc(sizeof(struct node));
+    struct node* node = (struct node*) checked_alloc(sizeof(struct node));
     node->key = key;
     node->left = node->right = NULL;
     return node;
@@ -119,7 +129,18 @@ void inOrder(struct node *root) {
     }
 }
 
-int main() {
+void freeTree(struct node *root) {
+    while (root) {
+        if (root->left) root = rightRotate(root);
+        else {
+            struct node *next = root->right;
+            free(root);
+            root = next;
+        }
+    }
+}
+
+int main(void) {
     struct node *root = NULL;
     char operation;
     int key;
@@ -132,22 +153,21 @@ int main() {
     printf("n - Print inorder\n");
     printf("q - Quit\n");
     
-    while (1) {
-        scanf("%c", &operation);
+    while (scanf(" %c", &operation) == 1) {
         
         switch (operation) {
             case 'i':
-                scanf("%d", &key);
+                if (scanf("%d", &key) != 1) goto done;
                 root = insert(root, key);
                 printf("Inserted %d\n", key);
                 break;
             case 'd':
-                scanf("%d", &key);
+                if (scanf("%d", &key) != 1) goto done;
                 root = delete(root, key);
                 printf("Deleted %d\n", key);
                 break;
             case 's':
-                scanf("%d", &key);
+                if (scanf("%d", &key) != 1) goto done;
                 root = search(root, key);
                 if (root && root->key == key)
                     printf("Found %d (now at root)\n", key);
@@ -165,10 +185,12 @@ int main() {
                 printf("\n");
                 break;
             case 'q':
-                return 0;
+                goto done;
             default:
                 break;
         }
     }
+done:
+    freeTree(root);
     return 0;
 }
