@@ -1,5 +1,5 @@
 /* Front and rear index a circular array supporting changes at both ends. */
-#include "../input.h"
+#include "../../common/input.h"
 #include <stdlib.h>
 
 #define MAX 10

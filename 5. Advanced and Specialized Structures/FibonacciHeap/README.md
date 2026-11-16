@@ -26,4 +26,4 @@ cc -std=c11 -Wall -Wextra -Wpedantic FibonacciHeap.c -o /tmp/fibonacci-heap
 /tmp/fibonacci-heap
 ```
 
-Commands are `insert <key>`, `find_min`, `extract_min`, and `exit`. Empty lookup/extraction prints `empty`; integer keys must fit in `int`. EOF, a missing/invalid insert operand, or `exit` ends the session and frees the remaining heap. The driver does not expose decrease-key/delete handles; those operations are available through the C functions.
+Commands are `insert <key>`, `find_min`, `extract_min`, and `exit`, as whitespace-separated tokens. Empty lookup/extraction prints `empty`; integer keys must be complete decimal tokens with an optional sign and must fit in `int`. Arbitrarily many leading zeros are accepted. EOF, a missing/invalid insert operand, a command token longer than 15 bytes or containing a NUL byte, or `exit` ends the session and frees the remaining heap. Other unrecognized command tokens are ignored. The driver does not expose decrease-key/delete handles; those operations are available through the C functions.

@@ -43,7 +43,7 @@ These bounds apply to the FIFO implementations below; priority queue insertion h
 
 ### Examples in this directory
 
-`simpleQueue.c` uses a linked FIFO queue; `circularQueue.c` uses a circular array with capacity 5; `deque.c` uses a circular array with capacity 10. Their core insertion, removal, and peek operations cost O(1). Display costs O(n). Interactive C examples accept whitespace-separated signed `int` values, including -1, and release allocated memory when input ends or is malformed. Removal and peek return a success flag and write the value through an output pointer, keeping empty state distinct from stored -1.
+`simpleQueue.c` uses a linked FIFO queue; `circularQueue.c` uses a circular array with capacity 5; `deque.c` uses a circular array with capacity 10. Their core insertion and removal operations cost O(1); the two FIFO queues also provide O(1) peek operations. Display costs O(n). Interactive C examples accept whitespace-separated signed `int` values, including -1, and release allocated memory when input ends or is malformed. In the two FIFO queues, removal and peek return a success flag and write the value through an output pointer, keeping empty state distinct from stored -1. The deque prints removed values directly and has no peek operation.
 
 `priorityQueue.c` maintains a sorted linked list. Smaller priority numbers are served first, and equal priorities retain insertion order. Insertion is O(n), while removal from the front is O(1). Its fixed demonstration prints `20 10 30`.
 

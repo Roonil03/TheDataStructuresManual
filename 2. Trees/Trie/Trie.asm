@@ -7,12 +7,9 @@ default rel
 section .note.GNU-stack noalloc noexec nowrite progbits
 
 extern malloc
-extern scanf
 extern printf
 
 section .data
-    fmt_int     db "%d", 0
-    fmt_str     db "%255s", 0
     fmt_found   db "Found: %s", 10, 0
     fmt_not     db "Not found: %s", 10, 0
 
@@ -151,10 +148,8 @@ main:
     call create_node
     mov [root], rax
 
-    lea rdi, [fmt_int]
-    lea rsi, [word_count]
-    xor eax, eax
-    call scanf
+    lea rdi, [word_count]
+    call tree_read_int
     cmp eax, 1
     jne input_error
     cmp dword [word_count], 0
@@ -166,12 +161,16 @@ main:
     cmp r12d, [word_count]
     jge .search_phase
 
-    lea rdi, [fmt_str]
-    lea rsi, [buffer]
-    xor eax, eax
-    call scanf
+    lea rdi, [buffer]
+    mov esi, 256
+    call tree_read_word
     cmp eax, 1
     jne input_error
+
+    lea rdi, [buffer]
+    call validate_word
+    test eax, eax
+    jz input_error
 
     mov rdi, [root]
     lea rsi, [buffer]
@@ -182,10 +181,8 @@ main:
 
 .search_phase:
 
-    lea rdi, [fmt_int]
-    lea rsi, [word_count]
-    xor eax, eax
-    call scanf
+    lea rdi, [word_count]
+    call tree_read_int
     cmp eax, 1
     jne input_error
     cmp dword [word_count], 0
@@ -197,12 +194,16 @@ main:
     cmp r12d, [word_count]
     jge .done
 
-    lea rdi, [fmt_str]
-    lea rsi, [buffer]
-    xor eax, eax
-    call scanf
+    lea rdi, [buffer]
+    mov esi, 256
+    call tree_read_word
     cmp eax, 1
     jne input_error
+
+    lea rdi, [buffer]
+    call validate_word
+    test eax, eax
+    jz input_error
 
     mov rdi, [root]
     lea rsi, [buffer]
@@ -273,3 +274,35 @@ free_trie:
     jmp free
 .done:
     ret
+
+; Validate the entire word before insertion can allocate any prefix nodes.
+validate_word:
+    movzx eax, byte [rdi]
+    test eax, eax
+    jz .valid
+    sub eax, 'a'
+    cmp eax, 25
+    ja .invalid
+    inc rdi
+    jmp validate_word
+.valid:
+    mov eax, 1
+    ret
+.invalid:
+    xor eax, eax
+    ret
+
+; Resolve the shared parser relative to this source, independent of the build directory.
+%strlen tree_input_pos __?FILE?__
+%assign tree_input_length tree_input_pos
+%define tree_input_dir ""
+%rep tree_input_length
+    %substr tree_input_char __?FILE?__ tree_input_pos
+    %ifidn tree_input_char, "/"
+        %substr tree_input_dir __?FILE?__ 1, tree_input_pos
+        %exitrep
+    %endif
+    %assign tree_input_pos tree_input_pos - 1
+%endrep
+%strcat tree_input_path tree_input_dir, "../nasm_input.inc"
+%include tree_input_path

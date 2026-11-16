@@ -1,3 +1,4 @@
+#include "../../common/input.h"
 /* Bounded octree insertion, lookup, and recursive display. */
 #include <stdio.h>
 #include <stdlib.h>
@@ -163,19 +164,19 @@ int main() {
                "3. Display tree\n"
                "4. Exit\n"
                "Enter choice: ");
-        int choice; if(scanf("%d",&choice)!=1) break;
+        int choice; if(!readInteger(&choice)) break;
         if(choice==1) {
             int x,y,z;
-            printf("Enter X (0-255): "); if (scanf("%d",&x) != 1) { octree_free(root); return EXIT_FAILURE; }
-            printf("Enter Y (0-255): "); if (scanf("%d",&y) != 1) { octree_free(root); return EXIT_FAILURE; }
-            printf("Enter Z (0-255): "); if (scanf("%d",&z) != 1) { octree_free(root); return EXIT_FAILURE; }
+            printf("Enter X (0-255): "); if (!readInteger(&x)) { octree_free(root); return EXIT_FAILURE; }
+            printf("Enter Y (0-255): "); if (!readInteger(&y)) { octree_free(root); return EXIT_FAILURE; }
+            printf("Enter Z (0-255): "); if (!readInteger(&z)) { octree_free(root); return EXIT_FAILURE; }
             octree_insert(root,x,y,z);
         }
         else if(choice==2) {
             int x,y,z;
-            printf("Enter X (0-255): "); if (scanf("%d",&x) != 1) { octree_free(root); return EXIT_FAILURE; }
-            printf("Enter Y (0-255): "); if (scanf("%d",&y) != 1) { octree_free(root); return EXIT_FAILURE; }
-            printf("Enter Z (0-255): "); if (scanf("%d",&z) != 1) { octree_free(root); return EXIT_FAILURE; }
+            printf("Enter X (0-255): "); if (!readInteger(&x)) { octree_free(root); return EXIT_FAILURE; }
+            printf("Enter Y (0-255): "); if (!readInteger(&y)) { octree_free(root); return EXIT_FAILURE; }
+            printf("Enter Z (0-255): "); if (!readInteger(&z)) { octree_free(root); return EXIT_FAILURE; }
             printf(octree_find(root,x,y,z) ? "Found\n" : "Not Found\n");
         }
         else if(choice==3) {

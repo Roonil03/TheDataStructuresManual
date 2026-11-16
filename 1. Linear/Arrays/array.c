@@ -1,5 +1,5 @@
 /* The fixed array stores five signed integers in contiguous memory. */
-#include "../input.h"
+#include "../../common/input.h"
 
 int main(void) {
     int arr[5];

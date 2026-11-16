@@ -1,5 +1,5 @@
 /* The fixed matrix stores five rows of five signed integers. */
-#include "../input.h"
+#include "../../common/input.h"
 
 int main(void) {
     int matrix[5][5];

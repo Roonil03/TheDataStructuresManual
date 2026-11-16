@@ -14,6 +14,8 @@ newline db 10,0
 
 section .bss
 root resq 1
+node_next resq 1
+node_limit resq 1
 coords resd 3
 buf resb 16
 
@@ -23,6 +25,7 @@ _start:
     lea rsi, [menu]
     call print_string
     call read_number
+    jc do_exit
     cmp eax, 4
     je do_exit
     cmp eax, 3
@@ -36,10 +39,13 @@ get_coords:
     lea rsi, [prompt]
     call print_string
     call read_number
+    jc input_error
     mov [coords], eax
     call read_number
+    jc input_error
     mov [coords+4], eax
     call read_number
+    jc input_error
     mov [coords+8], eax
     mov ecx, 3
     lea rdi, [coords]
@@ -164,9 +170,14 @@ display_done:
     ret
 
 new_node:
+    mov rax, [node_next]
+    lea rdx, [rax+80]
+    cmp rdx, [node_limit]
+    jbe .take_node
+    ; Anonymous mappings are zeroed. Pack 51 80-byte nodes into each page.
     mov eax, 9
     xor edi, edi
-    mov esi, 80
+    mov esi, 4096
     mov edx, 3
     mov r10d, 34
     mov r8, -1
@@ -174,20 +185,36 @@ new_node:
     syscall
     cmp rax, -4095
     jae input_error
+    lea rdx, [rax+4096]
+    mov [node_limit], rdx
+    lea rdx, [rax+80]
+.take_node:
+    mov [node_next], rdx
     ret
 
 read_number:
     xor r8d, r8d
     xor r9d, r9d
+    mov r10d, 2147483647
 skip_space:
     call read_byte
     test eax, eax
-    jz do_exit
+    jz number_eof
     cmp byte [buf], 32
+    je skip_space
+    movzx eax, byte [buf]
+    sub eax, 9
+    cmp eax, 4
     jbe skip_space
     cmp byte [buf], '-'
-    jne parse_digit
+    jne number_plus
     mov r9d, 1
+    inc r10d
+    jmp number_sign
+number_plus:
+    cmp byte [buf], '+'
+    jne parse_digit
+number_sign:
     call read_byte
     test eax, eax
     jz input_error
@@ -200,12 +227,16 @@ parse_digit:
     ja input_error
     imul r8d, r8d, 10
     add r8d, edx
-    cmp r8d, 2147483647
+    cmp r8d, r10d
     ja input_error
     call read_byte
     test eax, eax
     jz parsed
     cmp byte [buf], 32
+    je parsed
+    movzx eax, byte [buf]
+    sub eax, 9
+    cmp eax, 4
     ja parse_digit
 parsed:
     mov eax, r8d
@@ -213,6 +244,10 @@ parsed:
     jz parsed_done
     neg eax
 parsed_done:
+    clc
+    ret
+number_eof:
+    stc
     ret
 read_byte:
     xor eax, eax

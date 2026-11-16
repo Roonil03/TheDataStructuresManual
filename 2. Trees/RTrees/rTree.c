@@ -1,3 +1,4 @@
+#include "../../common/input.h"
 /* R-tree insertion propagates child splits and bounding rectangles upward. */
 #include <stdio.h>
 #include <stdlib.h>
@@ -339,33 +340,15 @@ int main() {
         printf("4. Exit\n");
         printf("Enter choice: ");
 
-        if (scanf("%d", &choice) != 1) {
-            printf("Invalid input!\n");
-            int ch;
-            while ((ch = getchar()) != '\n' && ch != EOF) {}
-            if (ch == EOF) { free_rtree(tree->root); free(tree); return 0; }
-            continue;
-        }
+        if (!readInteger(&choice)) break;
 
         switch (choice) {
             case 1:
                 printf("Enter rectangle (xmin ymin xmax ymax): ");
-                if (scanf("%lf %lf %lf %lf",
-                         &rect.xmin, &rect.ymin, &rect.xmax, &rect.ymax) != 4) {
-                    printf("Invalid input!\n");
-                    int ch;
-                    while ((ch = getchar()) != '\n' && ch != EOF) {}
-                    if (ch == EOF) { free_rtree(tree->root); free(tree); return 0; }
-                    break;
-                }
+                if (!readDouble(&rect.xmin) || !readDouble(&rect.ymin) ||
+                    !readDouble(&rect.xmax) || !readDouble(&rect.ymax)) goto done;
                 printf("Enter data ID: ");
-                if (scanf("%d", &id) != 1) {
-                    printf("Invalid input!\n");
-                    int ch;
-                    while ((ch = getchar()) != '\n' && ch != EOF) {}
-                    if (ch == EOF) { free_rtree(tree->root); free(tree); return 0; }
-                    break;
-                }
+                if (!readInteger(&id)) goto done;
                 if (!valid_rectangle(rect)) { printf("Invalid rectangle!\n"); break; }
                 insert_rect(tree, rect, id);
                 printf("Rectangle inserted successfully!\n");
@@ -373,14 +356,8 @@ int main() {
 
             case 2:
                 printf("Enter query rectangle (xmin ymin xmax ymax): ");
-                if (scanf("%lf %lf %lf %lf",
-                         &rect.xmin, &rect.ymin, &rect.xmax, &rect.ymax) != 4) {
-                    printf("Invalid input!\n");
-                    int ch;
-                    while ((ch = getchar()) != '\n' && ch != EOF) {}
-                    if (ch == EOF) { free_rtree(tree->root); free(tree); return 0; }
-                    break;
-                }
+                if (!readDouble(&rect.xmin) || !readDouble(&rect.ymin) ||
+                    !readDouble(&rect.xmax) || !readDouble(&rect.ymax)) goto done;
                 if (!valid_rectangle(rect)) { printf("Invalid rectangle!\n"); break; }
                 printf("\nSearch results:\n");
                 search_range(tree->root, rect, 0);
@@ -401,5 +378,8 @@ int main() {
                 printf("Invalid choice!\n");
         }
     }
+done:
+    free_rtree(tree->root);
+    free(tree);
     return 0;
 }

@@ -5,7 +5,6 @@ default rel
 section .note.GNU-stack noalloc noexec nowrite progbits
 
 section .data
-    fmt_d       db "%d", 0
     fmt_point   db "(%d,%d) ", 0
     fmt_nl      db 10, 0
     fmt_nearest db "Nearest to (%d,%d): (%d,%d)", 10, 0
@@ -23,7 +22,7 @@ section .bss
     best_high   resq 1
 
 section .text
-    extern scanf, printf
+    extern printf
     global main
 
 main:
@@ -38,10 +37,8 @@ main:
     sub     rsp, 48
 
     lea     r15, [rel tree_nodes]
-    lea     rdi, [rel fmt_d]
-    lea     rsi, [rel n]
-    xor     eax, eax
-    call    scanf
+    lea rdi, [rel n]
+    call tree_read_int
     cmp eax, 1
     jne input_error
     cmp dword [n], 1
@@ -57,17 +54,13 @@ input_loop:
     cmp     r12d, dword [rel n]
     jge     query_input
 
-    lea     rdi, [rel fmt_d]
-    lea     rsi, [rbp-4]
-    xor     eax, eax
-    call    scanf
+    lea rdi, [rbp-4]
+    call tree_read_int
     cmp eax, 1
     jne input_error
 
-    lea     rdi, [rel fmt_d]
-    lea     rsi, [rbp-8]
-    xor     eax, eax
-    call    scanf
+    lea rdi, [rbp-8]
+    call tree_read_int
     cmp eax, 1
     jne input_error
 
@@ -92,17 +85,13 @@ query_input:
     xor     eax, eax
     call    printf
 
-    lea     rdi, [rel fmt_d]
-    lea     rsi, [rel query_x]
-    xor     eax, eax
-    call    scanf
+    lea rdi, [rel query_x]
+    call tree_read_int
     cmp eax, 1
     jne input_error
 
-    lea     rdi, [rel fmt_d]
-    lea     rsi, [rel query_y]
-    xor     eax, eax
-    call    scanf
+    lea rdi, [rel query_y]
+    call tree_read_int
     cmp eax, 1
     jne input_error
 
@@ -313,3 +302,18 @@ find_end:
     pop     rbx
     pop     rbp
     ret
+
+; Resolve the shared parser relative to this source, independent of the build directory.
+%strlen tree_input_pos __?FILE?__
+%assign tree_input_length tree_input_pos
+%define tree_input_dir ""
+%rep tree_input_length
+    %substr tree_input_char __?FILE?__ tree_input_pos
+    %ifidn tree_input_char, "/"
+        %substr tree_input_dir __?FILE?__ 1, tree_input_pos
+        %exitrep
+    %endif
+    %assign tree_input_pos tree_input_pos - 1
+%endrep
+%strcat tree_input_path tree_input_dir, "../nasm_input.inc"
+%include tree_input_path

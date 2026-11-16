@@ -1,3 +1,4 @@
+#include "../../common/input.h"
 /* Array-backed heap insertion and repeated root extraction. */
 #include <stdio.h>
 #include <stdlib.h>
@@ -70,10 +71,10 @@ int extract_min() {
 int main() {
     int n, value;
 
-    if (scanf("%d", &n) != 1 || n < 0 || n > MAX_SIZE) return EXIT_FAILURE;
+    if (!readInteger(&n) || n < 0 || n > MAX_SIZE) return EXIT_FAILURE;
 
     for (int i = 0; i < n; i++) {
-        if (scanf("%d", &value) != 1) return EXIT_FAILURE;
+        if (!readInteger(&value)) return EXIT_FAILURE;
         insert(value);
     }
 

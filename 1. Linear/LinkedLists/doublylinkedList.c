@@ -1,5 +1,5 @@
 /* Nodes carry next and previous links, beginning at the head pointer. */
-#include "../input.h"
+#include "../../common/input.h"
 #include <stdlib.h>
 
 struct Node {

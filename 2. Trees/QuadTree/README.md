@@ -2,7 +2,7 @@
 
 ## Included programs
 
-The examples read `n` (1–200), `n` integer `(x, y)` points, and a query point. They implement a point quadtree, splitting by each stored point’s coordinates rather than fixed spatial cells. They print a preorder traversal and find a nearest point by visiting every node, using exact squared-distance comparisons for signed 32-bit coordinates. Equal-distance ties keep the first point visited. This tree can be skewed; nearest search is O(n). Region subdivision, pruning, deletion, and range-query algorithms below are not implemented here.
+The C and assembly examples read a count from 1 through 200, that many integer coordinate pairs, and one query point. They print a preorder traversal followed by a nearest point to the query.
 
 Build from this directory (outputs stay in `/tmp`):
 
@@ -12,72 +12,17 @@ nasm -f elf64 "QuadTree.asm" -o /tmp/tree.o
 gcc -no-pie /tmp/tree.o -o /tmp/tree-asm
 ```
 
-## Overview
+## Point insertion
 
-A **Quad‐Tree** is a hierarchical data structure for partitioning two‐dimensional space into adaptable, axis‐aligned quadrants. Each node stores a point or region, and recursively divides its area into four child quadrants—Northwest (NW), Northeast (NE), Southwest (SW), and Southeast (SE)—allowing efficient spatial queries such as point location, range search, and nearest‐neighbor search.
+Each node stores one point and four child links. Its x and y coordinates divide the plane into four quadrants. Insertion compares the incoming point to the current node, follows the selected child, and creates a node at the first empty link. Equal x goes east and equal y goes north. Identical points occupy separate nodes on the northeast path. The C and assembly programs reserve storage for 200 nodes.
 
-## Key Properties
+Insertion takes O(h) time for tree height h. Input order determines the shape. A sequence following the same quadrant can produce a chain of n nodes, so building the tree can take O(n²) time. A traversal visits each point once and uses O(h) call-stack space.
 
-- **Recursive Subdivision**: The plane is subdivided into quadrants at each node, with each non‐leaf node having exactly four children.
-- **Adaptive Resolution**: Regions only subdivide when they contain points exceeding a threshold, providing finer granularity where needed.
-- **Spatial Locality**: Points geographically close in 2D map to nearby nodes, improving cache performance and query efficiency.
-- **Adaptive Shape**: Quad-Trees adapt to data distribution; point quadtrees are not guaranteed to be balanced.
+## Nearest-point search
 
+The examples compare the squared Euclidean distance from the query to every stored point. They keep the first point encountered at the smallest distance. The distance calculation accounts for the carry when adding the two squared coordinate differences, since two signed 32-bit points can have a squared distance larger than a 64-bit unsigned integer.
 
-## Core Operations
-
-### 1. Insertion
-
-- Begin at the root covering the entire region.
-- If the node is empty and below capacity, store the point.
-- If capacity is exceeded, subdivide the node into four quadrants, redistribute existing points into their corresponding child quadrants, and then insert the new point recursively into the appropriate child.
-- Runs in *O*(log n) on average for uniformly distributed points, where *n* is the number of points.
-
-
-### 2. Range Search
-
-- Given an axis‐aligned rectangular query region, traverse from the root:
-
-    1. If the node’s region does not intersect the query, skip it.
-    2. If the node is a leaf, test stored points for inclusion.
-    3. Otherwise, recursively search child quadrants whose regions intersect the query.
-- Efficiently prunes large empty areas, yielding performance proportional to the number of reported points plus the number of traversed nodes.
-
-
-### 3. Nearest‐Neighbor Search
-
-- Recursively traverse the tree to find the leaf quadrant containing the query point.
-- Maintain the best (closest) point found so far and its distance.
-- As the recursion unwinds, for each node check whether other quadrants could contain a closer point by comparing the best distance to the distance from the query to the quadrant boundary.
-- Search those quadrants if they might improve the result.
-- Average complexity is *O*(log n), worst‐case *O*(n) in highly skewed distributions.
-
-
-### 4. Deletion (Optional)
-
-- Locate the point by traversing down the quadrants.
-- Remove it when found; if a node becomes under‐populated and its children are leaves, collapse the subdivision by merging children back into the parent.
-
-
-## Complexity Analysis
-
-| Operation | Average Time | Worst‐Case Time | Space |
-| :-- | :-- | :-- | :-- |
-| Insertion | *O*(log n) | *O*(n) | *O*(n) |
-| Range Search | *O*(r + log n) | *O*(n) | *O*(n + q) |
-| Nearest‐Neighbor | *O*(log n) | *O*(n) | *O*(n) |
-| Deletion | *O*(log n) | *O*(n) | *O*(n) |
-
-Here, *r* is the number of reported points and *q* is the number of quadtree nodes visited during a query.
-
-## Implementation Details
-
-- **Node Structure**: Each node stores a bounding box, a list of points if leaf, and four child pointers if subdivided.
-- **Threshold Capacity**: Choose a maximum number of points per leaf (e.g., 1–4) to balance tree depth vs. node search cost.
-- **Subdivision Logic**: On overflow, compute the midpoint of the node’s bounding box on both axes to create four equal quadrants.
-- **Memory Management**: Use dynamic allocation for nodes and carefully handle deallocation to prevent memory leaks.
-- **Boundary Handling**: Define clear rules for points lying exactly on subdivision lines to ensure deterministic placement.
-
+A query takes O(n) time and O(h) call-stack space. A region quadtree, used for tasks such as image subdivision, instead splits a fixed bounding box into four equal regions. Such a representation needs different insertion and search rules.
 
 ## Use Cases and Applications
 

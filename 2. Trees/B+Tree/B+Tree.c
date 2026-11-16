@@ -1,3 +1,4 @@
+#include "../../common/input.h"
 /* Order-3 B+ tree insertion with linked leaves and upward split propagation. */
 #include <stdio.h>
 #include <stdlib.h>
@@ -161,10 +162,10 @@ void print_tree() {
 
 int main() {
     int n, key;
-    if (scanf("%d", &n) != 1 || n < 0) return EXIT_FAILURE;
+    if (!readInteger(&n) || n < 0) return EXIT_FAILURE;
 
     for (int i = 0; i < n; i++) {
-        if (scanf("%d", &key) != 1) { free_tree(root); return EXIT_FAILURE; }
+        if (!readInteger(&key)) { free_tree(root); return EXIT_FAILURE; }
         insert(key);
     }
 

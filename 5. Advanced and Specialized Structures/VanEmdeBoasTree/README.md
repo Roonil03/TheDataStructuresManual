@@ -36,4 +36,4 @@ cc -std=c11 -Wall -Wextra -Wpedantic vanEmdeBoasTree.c -o /tmp/veb-tree
 /tmp/veb-tree
 ```
 
-Commands are `i <x>` (insert), `d <x>` (delete), `m <x>` (membership), `s <x>` (successor), `r <x>` (predecessor), `p` (print min/max), and `q` (quit). The driver reports `Out of range` for invalid insert keys. Keys/arguments must fit in `int`. EOF, an invalid/missing integer operand, or `q` ends the session and frees the tree.
+Commands are `i <x>` (insert), `d <x>` (delete), `m <x>` (membership), `s <x>` (successor), `r <x>` (predecessor), `p` (print min/max), and `q` (quit), as whitespace-separated tokens. Commands must be single characters; combined tokens such as `i5` and `pp` are invalid. The driver reports `Out of range` for invalid insert keys. Keys/arguments must be complete decimal tokens with an optional sign and must fit in `int`; arbitrarily many leading zeros are accepted. EOF, an invalid/missing integer operand, a command token longer than one byte or containing a NUL byte, or `q` ends the session and frees the tree. Other unrecognized single-character commands are ignored.

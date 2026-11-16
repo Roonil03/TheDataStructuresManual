@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include "../../common/input.h"
 
 static void *checked_alloc(size_t size) {
     void *p = malloc(size);
@@ -142,7 +143,7 @@ void freeTree(struct node *root) {
 
 int main(void) {
     struct node *root = NULL;
-    char operation;
+    char command[2];
     int key;
     
     printf("Splay Tree Operations:\n");
@@ -153,21 +154,21 @@ int main(void) {
     printf("n - Print inorder\n");
     printf("q - Quit\n");
     
-    while (scanf(" %c", &operation) == 1) {
+    while (readToken(command, sizeof command)) {
         
-        switch (operation) {
+        switch (command[0]) {
             case 'i':
-                if (scanf("%d", &key) != 1) goto done;
+                if (!readInteger(&key)) goto done;
                 root = insert(root, key);
                 printf("Inserted %d\n", key);
                 break;
             case 'd':
-                if (scanf("%d", &key) != 1) goto done;
+                if (!readInteger(&key)) goto done;
                 root = delete(root, key);
                 printf("Deleted %d\n", key);
                 break;
             case 's':
-                if (scanf("%d", &key) != 1) goto done;
+                if (!readInteger(&key)) goto done;
                 root = search(root, key);
                 if (root && root->key == key)
                     printf("Found %d (now at root)\n", key);

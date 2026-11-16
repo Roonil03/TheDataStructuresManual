@@ -1,5 +1,5 @@
 /* The last node links back to the first node in a circular chain. */
-#include "../input.h"
+#include "../../common/input.h"
 #include <stdlib.h>
 
 struct Node {

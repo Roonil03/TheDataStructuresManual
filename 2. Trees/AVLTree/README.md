@@ -4,6 +4,8 @@
 
 Both programs read integer keys until EOF, ignore duplicate keys, and print inorder traversal. Insertion maintains AVL heights and rotations. The balance factor used in the sources is `height(left) - height(right)`. Search and deletion discussed below are background concepts, not implemented operations. Recursive insertion uses O(log n) auxiliary space.
 
+On ordinary EOF, both programs print the accepted keys and return status 0. On a malformed or out-of-range integer token, `AVLTree.c` writes a diagnostic to stderr, prints the keys accepted before that token, frees the tree, and returns status 0. `AVLTree.asm` frees the tree and returns status 1 without printing a traversal.
+
 Build from this directory (outputs stay in `/tmp`):
 
 ```sh

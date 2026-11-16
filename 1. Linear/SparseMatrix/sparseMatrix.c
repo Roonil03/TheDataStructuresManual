@@ -44,7 +44,7 @@ void printCSR(CSR *csr) {
         printf("%d ", csr->colIndex[i]);
     }
     printf("\nRow Pointers: ");
-    for (int i = 0; i <= csr->rows; i++) {
+    for (size_t i = 0; i < (size_t)csr->rows + 1; i++) {
         printf("%d ", csr->rowPtr[i]);
     }
     printf("\n");
@@ -61,7 +61,7 @@ void printCSC(CSC *csc) {
         printf("%d ", csc->rowIndex[i]);
     }
     printf("\nColumn Pointers: ");
-    for (int i = 0; i <= csc->cols; i++) {
+    for (size_t i = 0; i < (size_t)csc->cols + 1; i++) {
         printf("%d ", csc->colPtr[i]);
     }
     printf("\n");
@@ -84,24 +84,32 @@ void printCOO(COO *coo) {
     printf("\n");
 }
 
-int convertToCSR(int **matrix, int rows, int cols, CSR *csr) {
-    *csr = (CSR){0};
-    if (rows < 0 || cols < 0 || (rows > 0 && matrix == NULL) ||
-        (size_t)rows >= SIZE_MAX / sizeof(int) ||
-        (size_t)cols >= SIZE_MAX / sizeof(int) ||
-        ((size_t)rows * (size_t)cols) > SIZE_MAX / sizeof(Element) ||
-        (cols != 0 && rows > INT_MAX / cols)) return 0;
+/* Only stored nonzero entries must fit the int indices and allocation sizes. */
+static int countNonZero(int **matrix, int rows, int cols, int *count) {
+    if (rows < 0 || cols < 0) return 0;
+    *count = 0;
+    if (rows == 0 || cols == 0) return 1;
+    if (matrix == NULL) return 0;
     for (int i = 0; i < rows; i++) {
-        if (cols > 0 && matrix[i] == NULL) return 0;
+        if (matrix[i] == NULL) return 0;
     }
-    int nonZeroCount = 0;
     for (int i = 0; i < rows; i++) {
         for (int j = 0; j < cols; j++) {
             if (matrix[i][j] != 0) {
-                nonZeroCount++;
+                if (*count == INT_MAX) return 0;
+                (*count)++;
             }
         }
     }
+    return 1;
+}
+
+int convertToCSR(int **matrix, int rows, int cols, CSR *csr) {
+    *csr = (CSR){0};
+    int nonZeroCount;
+    if (!countNonZero(matrix, rows, cols, &nonZeroCount) ||
+        (size_t)rows >= SIZE_MAX / sizeof(int) ||
+        (size_t)nonZeroCount > SIZE_MAX / sizeof(int)) return 0;
     csr->rows = rows;
     csr->cols = cols;
     csr->nonZeroCount = nonZeroCount;
@@ -132,22 +140,10 @@ int convertToCSR(int **matrix, int rows, int cols, CSR *csr) {
 
 int convertToCSC(int **matrix, int rows, int cols, CSC *csc) {
     *csc = (CSC){0};
-    if (rows < 0 || cols < 0 || (rows > 0 && matrix == NULL) ||
-        (size_t)rows >= SIZE_MAX / sizeof(int) ||
+    int nonZeroCount;
+    if (!countNonZero(matrix, rows, cols, &nonZeroCount) ||
         (size_t)cols >= SIZE_MAX / sizeof(int) ||
-        ((size_t)rows * (size_t)cols) > SIZE_MAX / sizeof(Element) ||
-        (cols != 0 && rows > INT_MAX / cols)) return 0;
-    for (int i = 0; i < rows; i++) {
-        if (cols > 0 && matrix[i] == NULL) return 0;
-    }
-    int nonZeroCount = 0;
-    for (int i = 0; i < rows; i++) {
-        for (int j = 0; j < cols; j++) {
-            if (matrix[i][j] != 0) {
-                nonZeroCount++;
-            }
-        }
-    }
+        (size_t)nonZeroCount > SIZE_MAX / sizeof(int)) return 0;
     csc->rows = rows;
     csc->cols = cols;
     csc->nonZeroCount = nonZeroCount;
@@ -178,22 +174,9 @@ int convertToCSC(int **matrix, int rows, int cols, CSC *csc) {
 
 int convertToCOO(int **matrix, int rows, int cols, COO *coo) {
     *coo = (COO){0};
-    if (rows < 0 || cols < 0 || (rows > 0 && matrix == NULL) ||
-        (size_t)rows >= SIZE_MAX / sizeof(int) ||
-        (size_t)cols >= SIZE_MAX / sizeof(int) ||
-        ((size_t)rows * (size_t)cols) > SIZE_MAX / sizeof(Element) ||
-        (cols != 0 && rows > INT_MAX / cols)) return 0;
-    for (int i = 0; i < rows; i++) {
-        if (cols > 0 && matrix[i] == NULL) return 0;
-    }
-    int nonZeroCount = 0;
-    for (int i = 0; i < rows; i++) {
-        for (int j = 0; j < cols; j++) {
-            if (matrix[i][j] != 0) {
-                nonZeroCount++;
-            }
-        }
-    }
+    int nonZeroCount;
+    if (!countNonZero(matrix, rows, cols, &nonZeroCount) ||
+        (size_t)nonZeroCount > SIZE_MAX / sizeof(Element)) return 0;
     coo->nonZeroCount = nonZeroCount;
     coo->elements = nonZeroCount ? malloc((size_t)nonZeroCount * sizeof(Element)) : NULL;
     if (nonZeroCount && !coo->elements) {

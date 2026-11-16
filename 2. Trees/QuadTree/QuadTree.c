@@ -1,3 +1,4 @@
+#include "../../common/input.h"
 /* Point-quadtree insertion with exhaustive nearest search. */
 #include <stdio.h>
 #include <stdlib.h>
@@ -70,16 +71,16 @@ void nearest(Node* t, int qx, int qy) {
 
 int main(void) {
     int n, x, y, qx, qy;
-    if (scanf("%d", &n) != 1 || n < 1 || n > MAXN) return EXIT_FAILURE;
+    if (!readInteger(&n) || n < 1 || n > MAXN) return EXIT_FAILURE;
     Node* root = NULL;
     for (int i = 0; i < n; i++) {
-        if (scanf("%d%d", &x, &y) != 2) return EXIT_FAILURE;
+        if (!readInteger(&x) || !readInteger(&y)) return EXIT_FAILURE;
         root = insert(root, x, y);
     }
     printf("Points: ");
     print_tree(root);
     printf("\n");
-    if (scanf("%d%d", &qx, &qy) != 2) return EXIT_FAILURE;
+    if (!readInteger(&qx) || !readInteger(&qy)) return EXIT_FAILURE;
     best_dist = (Distance){UINT64_MAX, 2};
     nearest(root, qx, qy);
     printf("Nearest to (%d,%d): (%d,%d)\n", qx, qy, bx, by);

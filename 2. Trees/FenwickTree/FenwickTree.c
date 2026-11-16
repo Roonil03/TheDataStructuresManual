@@ -1,3 +1,4 @@
+#include "../../common/input.h"
 /* Array-backed prefix sums with point-add updates. */
 #include <stdio.h>
 #include <stdlib.h>
@@ -23,22 +24,22 @@ long long query(int idx) {
 }
 
 int main() {
-    if (scanf("%d", &n) != 1 || n < 0 || n > INT_MAX / 2) return EXIT_FAILURE;
+    if (!readInteger(&n) || n < 0 || n > INT_MAX / 2) return EXIT_FAILURE;
 
     tree = (long long*)calloc(n + 1, sizeof(long long));
     if (!tree && n != 0) exit(EXIT_FAILURE);
 
     for (int i = 0; i < n; i++) {
         int val;
-        if (scanf("%d", &val) != 1) { free(tree); return EXIT_FAILURE; }
+        if (!readInteger(&val)) { free(tree); return EXIT_FAILURE; }
         update(i, val);
     }
 
-    if (scanf("%d", &q) != 1 || q < 0) { free(tree); return EXIT_FAILURE; }
+    if (!readInteger(&q) || q < 0) { free(tree); return EXIT_FAILURE; }
 
     for (int i = 0; i < q; i++) {
         int idx;
-        if (scanf("%d", &idx) != 1 || idx < 0 || idx >= n) { free(tree); return EXIT_FAILURE; }
+        if (!readInteger(&idx) || idx < 0 || idx >= n) { free(tree); return EXIT_FAILURE; }
         printf("%lld ", query(idx));
     }
 

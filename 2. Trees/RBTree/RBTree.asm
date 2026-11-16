@@ -8,11 +8,9 @@ section .note.GNU-stack noalloc noexec nowrite progbits
 
 extern free
 extern malloc
-extern scanf
 extern printf
 
 section .data
-    fmt_scan  db "%d", 0
     fmt_print db "%d ", 0
     newline   db 10, 0
 
@@ -42,14 +40,15 @@ main:
     mov rbp, rsp
     sub rsp, 16
     xor r12, r12
+    mov dword [rbp-8], 0
 
 .read_loop:
-    lea rdi, [fmt_scan]
-    lea rsi, [temp]
-    xor eax, eax
-    call scanf
+    lea rdi, [temp]
+    call tree_read_int
+    cmp eax, -1
+    je .print_tree
     cmp eax, 1
-    jne .print_tree
+    jne .invalid_input
     mov esi, [temp]
     mov rdi, r12
     call insert
@@ -62,9 +61,13 @@ main:
     lea rdi, [newline]
     xor eax, eax
     call printf
+    jmp .cleanup
+.invalid_input:
+    mov dword [rbp-8], 1
+.cleanup:
     mov rdi, r12
     call destroy
-    xor eax, eax
+    mov eax, [rbp-8]
     leave
     add rsp, 8
     pop r15
@@ -304,3 +307,18 @@ allocation_error:
     mov edi, 1
     call exit
     ud2
+
+; Resolve the shared parser relative to this source, independent of the build directory.
+%strlen tree_input_pos __?FILE?__
+%assign tree_input_length tree_input_pos
+%define tree_input_dir ""
+%rep tree_input_length
+    %substr tree_input_char __?FILE?__ tree_input_pos
+    %ifidn tree_input_char, "/"
+        %substr tree_input_dir __?FILE?__ 1, tree_input_pos
+        %exitrep
+    %endif
+    %assign tree_input_pos tree_input_pos - 1
+%endrep
+%strcat tree_input_path tree_input_dir, "../nasm_input.inc"
+%include tree_input_path

@@ -1,6 +1,7 @@
 section .data
     fmt_put:     db "Put %d -> %d", 10, 0
     fmt_get:     db "Get %d -> %d (found=%d)", 10, 0
+    fmt_missing: db "Get %d -> not found (found=0)", 10, 0
     fmt_info:    db "HashMap: size=%d capacity=%d", 10, 0
     fmt_contains:db "Contains %d: %d", 10, 0
 
@@ -358,6 +359,8 @@ main:
     mov rdi, rbx
     mov esi, 20
     call hashmap_get
+    test eax, eax
+    jz .first_missing
     mov r8d, eax
     mov ecx, [rbp - 20]
     lea rdi, [rel fmt_get]
@@ -366,6 +369,13 @@ main:
     mov ecx, r8d
     xor eax, eax
     call printf
+    jmp .first_reported
+.first_missing:
+    lea rdi, [rel fmt_missing]
+    mov esi, 20
+    xor eax, eax
+    call printf
+.first_reported:
 
     mov rdi, rbx
     mov esi, 20
@@ -376,6 +386,8 @@ main:
     mov rdi, rbx
     mov esi, 20
     call hashmap_get
+    test eax, eax
+    jz .second_missing
     mov r8d, eax
     mov ecx, [rbp - 20]
     lea rdi, [rel fmt_get]
@@ -384,6 +396,13 @@ main:
     mov ecx, r8d
     xor eax, eax
     call printf
+    jmp .second_reported
+.second_missing:
+    lea rdi, [rel fmt_missing]
+    mov esi, 20
+    xor eax, eax
+    call printf
+.second_reported:
 
     mov rdi, rbx
     call hashmap_free

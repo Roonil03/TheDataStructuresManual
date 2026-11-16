@@ -1,3 +1,4 @@
+#include "../../common/input.h"
 /* Lowercase-word trie with terminal markers and exact-word lookup. */
 #include <stdio.h>
 #include <stdlib.h>
@@ -72,6 +73,17 @@ void free_trie(TrieNode* root) {
     free(root);
 }
 
+static int readWord(char *word, size_t capacity) {
+    if (!readToken(word, capacity)) return 0;
+    for (size_t i = 0; word[i] != '\0'; i++) {
+        if (word[i] < 'a' || word[i] > 'z') {
+            fprintf(stderr, "Invalid word input.\n");
+            return 0;
+        }
+    }
+    return 1;
+}
+
 int main() {
     TrieNode* root = create_node();
     if (!root) {
@@ -81,18 +93,18 @@ int main() {
     int word_count;
     char buffer[256];
 
-    if (scanf("%d", &word_count) != 1 || word_count < 0) { free_trie(root); return EXIT_FAILURE; }
+    if (!readInteger(&word_count) || word_count < 0) { free_trie(root); return EXIT_FAILURE; }
 
     for (int i = 0; i < word_count; i++) {
-        if (scanf("%255s", buffer) != 1) { free_trie(root); return EXIT_FAILURE; }
+        if (!readWord(buffer, sizeof buffer)) { free_trie(root); return EXIT_FAILURE; }
         insert(root, buffer);
     }
 
     int search_count;
-    if (scanf("%d", &search_count) != 1 || search_count < 0) { free_trie(root); return EXIT_FAILURE; }
+    if (!readInteger(&search_count) || search_count < 0) { free_trie(root); return EXIT_FAILURE; }
 
     for (int i = 0; i < search_count; i++) {
-        if (scanf("%255s", buffer) != 1) { free_trie(root); return EXIT_FAILURE; }
+        if (!readWord(buffer, sizeof buffer)) { free_trie(root); return EXIT_FAILURE; }
 
         if (search(root, buffer)) {
             printf("Found: %s\n", buffer);

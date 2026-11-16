@@ -1,3 +1,4 @@
+#include "../../common/input.h"
 /* Naive compressed suffix insertion and edge-based substring search. */
 #include <stdio.h>
 #include <stdlib.h>
@@ -142,8 +143,8 @@ void free_tree(SuffixNode* node) {
 int main() {
     char pattern[MAX_N];
 
-    if (scanf("%999s", text) != 1) return EXIT_FAILURE;
-    if (scanf("%999s", pattern) != 1) return EXIT_FAILURE;
+    if (!readToken(text, sizeof text)) return EXIT_FAILURE;
+    if (!readToken(pattern, sizeof pattern)) return EXIT_FAILURE;
 
     text_length = strlen(text);
 

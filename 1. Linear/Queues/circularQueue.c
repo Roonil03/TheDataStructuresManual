@@ -1,5 +1,5 @@
 /* Front and rear index a five-element circular array; -1 marks empty state. */
-#include "../input.h"
+#include "../../common/input.h"
 #include <stdlib.h>
 
 #define SIZE 5

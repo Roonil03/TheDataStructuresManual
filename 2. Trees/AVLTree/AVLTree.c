@@ -1,3 +1,4 @@
+#include "../../common/input.h"
 /* AVL insertion with stored subtree heights and rotations. */
 #include <stdio.h>
 #include <stdlib.h>
@@ -100,7 +101,7 @@ void free_tree(struct Node *node) {
 int main() {
     struct Node* root = NULL;
     int key;
-    while (scanf("%d", &key) == 1) {
+    while (readInteger(&key)) {
         root = insert(root, key);
     }
     inorder(root);

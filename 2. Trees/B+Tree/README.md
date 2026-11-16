@@ -105,16 +105,16 @@ The O(log_m n) operation descriptions count tree levels (node accesses). The CPU
   - Versioning for snapshot isolation
 
 ## Advantages
-1. **Range Query Efficiency**: Sequential leaf traversal enables O(k) range scans
+1. **Range Query Efficiency**: Finding the first matching leaf takes O(log n); following leaf links then scans k results in O(k), for O(log n + k) total with fixed order
 2. **Higher Fanout**: More keys per node than B-Trees (no data in internal nodes)
 3. **Stable Performance**: Guaranteed O(logm n) operations
-4. **Disk I/O Reduction**: 3-4x fewer disk accesses than B-Trees
+4. **Disk I/O Reduction**: High fanout and linked leaves can reduce page accesses, depending on page layout and workload
 5. **Predictable Growth**: Height increases only when root splits
 
 ## Disadvantages
 1. **Insertion Overhead**: More frequent splits than B-Trees
 2. **Redundant Keys**: Keys appear in both internal and leaf nodes
-3. **Implementation Complexity**: ~40% more complex than B-Tree implementation
+3. **Implementation Complexity**: Splits must preserve separator keys and leaf links
 4. **Point Query Cost**: Slightly slower than B-Trees for single-key lookups
 
 ## Real-World Applications
@@ -139,7 +139,7 @@ The O(log_m n) operation descriptions count tree levels (node accesses). The CPU
 | **Data Storage** | Only in leaf nodes          | All nodes               |
 | **Leaf Linkage** | Linked sequential access    | No leaf connections     |
 | **Height**       | Lower for same data volume  | Slightly higher         |
-| **Range Queries**| Optimal (O(k))             | O(log n + k) with ordered traversal|
+| **Range Queries**| O(log n + k) via linked leaves | O(log n + k) with ordered traversal |
 | **Point Queries**| Slightly slower            | Faster                  |
 | **Disk Usage**   | More efficient              | Less efficient          |
 

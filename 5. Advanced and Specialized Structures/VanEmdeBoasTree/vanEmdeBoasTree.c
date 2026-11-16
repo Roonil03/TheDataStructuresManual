@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include "../../common/input.h"
 
 /* The minimum is stored separately; the summary indexes nonempty clusters. */
 typedef struct vEB {
@@ -132,16 +133,17 @@ void vEB_free(vEB *V) {
 
 int main(void) {
     vEB *T = vEB_create(16);
-    char op;
+    char command[2];
     int x;
-    while (scanf(" %c", &op) == 1) {
+    while (readToken(command, sizeof command)) {
+        char op = command[0];
         if (op == 'q') break;
         if (op == 'p') {
             printf("Min: %d  Max: %d\n", T->min, T->max);
             continue;
         }
         if (op != 'i' && op != 'd' && op != 'm' && op != 's' && op != 'r') continue;
-        if (scanf("%d", &x) != 1) break;
+        if (!readInteger(&x)) break;
         switch (op) {
             case 'i':
                 if (x < 0 || x >= T->u) printf("Out of range\n");

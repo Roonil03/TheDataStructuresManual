@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <limits.h>
 #include <string.h>
+#include "../../common/input.h"
 
 static void *checked_alloc(size_t size) {
     void *p = malloc(size);
@@ -179,10 +180,10 @@ void fib_delete(FibHeap *H, Node *x) {
 int main(void) {
     FibHeap *H = make_heap();
     char cmd[16];
-    while (scanf("%15s", cmd) == 1) {
+    while (readToken(cmd, sizeof cmd)) {
         if (strcmp(cmd, "insert") == 0) {
             int k;
-            if (scanf("%d", &k) != 1) break;
+            if (!readInteger(&k)) break;
             fib_insert(H, make_node(k));
         } else if (strcmp(cmd, "find_min") == 0) {
             if (H->min) printf("%d\n", H->min->key);

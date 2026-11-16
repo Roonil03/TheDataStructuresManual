@@ -1,6 +1,6 @@
 BITS 64
 default rel
-extern calloc, free, scanf, printf, exit
+extern calloc, free, printf, exit
 
 ; Order 3; arrays include one temporary overflow slot.
 %define COUNT 0
@@ -12,7 +12,6 @@ extern calloc, free, scanf, printf, exit
 
 section .note.GNU-stack noalloc noexec nowrite progbits
 section .data
-    fmt_int db "%d", 0
     fmt_out db "%d ", 0
     newline db 10, 0
 section .bss
@@ -23,10 +22,8 @@ section .text
 global main
 main:
     push rbx
-    lea rdi, [fmt_int]
-    lea rsi, [key_count]
-    xor eax, eax
-    call scanf
+    lea rdi, [key_count]
+    call tree_read_int
     cmp eax, 1
     jne .error
     cmp dword [key_count], 0
@@ -37,10 +34,8 @@ main:
 .read:
     cmp ebx, [key_count]
     jge .print
-    lea rdi, [fmt_int]
-    lea rsi, [temp]
-    xor eax, eax
-    call scanf
+    lea rdi, [temp]
+    call tree_read_int
     cmp eax, 1
     jne .error
     mov rdi, [root]
@@ -259,3 +254,18 @@ allocation_error:
     mov edi, 1
     call exit
     ud2
+
+; Resolve the shared parser relative to this source, independent of the build directory.
+%strlen tree_input_pos __?FILE?__
+%assign tree_input_length tree_input_pos
+%define tree_input_dir ""
+%rep tree_input_length
+    %substr tree_input_char __?FILE?__ tree_input_pos
+    %ifidn tree_input_char, "/"
+        %substr tree_input_dir __?FILE?__ 1, tree_input_pos
+        %exitrep
+    %endif
+    %assign tree_input_pos tree_input_pos - 1
+%endrep
+%strcat tree_input_path tree_input_dir, "../nasm_input.inc"
+%include tree_input_path

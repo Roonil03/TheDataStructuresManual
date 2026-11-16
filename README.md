@@ -15,6 +15,12 @@ This repository contains the most used and important Data Structures in an attem
 
 ---
 
+## C input conventions
+
+Interactive integer input in the linear and tree examples, plus Fibonacci heap, splay tree, and van Emde Boas tree, uses [`common/input.h`](./common/input.h). Each integer is a complete whitespace-separated decimal token: an optional `+` or `-`, followed by one or more ASCII digits. Values must fit in `int`; arbitrary leading zeros are accepted. Each driver also checks its own count, coordinate, or index bounds. Malformed tokens, including embedded NUL bytes and numeric suffixes, stop input before that token changes the data structure. EOF ends input and releases allocated storage.
+
+Word and command readers enforce the byte limits documented with each example and reject embedded NUL bytes. The C R-tree accepts complete finite floating-point coordinate tokens of at most 127 bytes and rejects range errors.
+
 ## Repository Index
 
 Select a module category below to view the individual algorithms, memory configurations, and language implementations:

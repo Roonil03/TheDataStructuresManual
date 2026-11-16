@@ -6,6 +6,8 @@
 
 `SuffixTree.asm` reads a text token of up to 999 bytes and a pattern token of up to 255 bytes. It builds a compact suffix tree by inserting suffixes from left to right. A node stores an edge’s start and exclusive end offsets, its first child, its next sibling, and the earliest suffix position below it. A mismatch inside an edge splits that edge. A successful query prints the earliest zero-based match. A miss prints `Pattern not found`. For a fixed byte alphabet, construction takes O(n²) time and lookup takes O(m) time. At most two nodes are added per suffix.
 
+Both drivers read complete whitespace-separated tokens. A missing field, an overlong token, or an embedded NUL byte ends the session with an error.
+
 Build from this directory (outputs stay in `/tmp`):
 
 ```sh
@@ -16,7 +18,7 @@ gcc -no-pie /tmp/tree.o -o /tmp/tree-asm
 
 ## Overview
 
-A **suffix tree** is a compressed trie that represents all suffixes of a given string in a space-efficient way.  By collapsing chains of single children into edges labeled with substrings, suffix trees support fast substring queries, longest-common-substring computations, and other advanced string operations in linear time relative to the pattern length.
+A **suffix tree** is a compressed trie that represents all suffixes of a given string in a space-efficient way.  By collapsing chains of single children into edges labeled with substrings, a suffix tree can answer substring queries in time proportional to the pattern length for a fixed alphabet. A generalized suffix tree can also compare multiple strings.
 
 ## Key Properties
 

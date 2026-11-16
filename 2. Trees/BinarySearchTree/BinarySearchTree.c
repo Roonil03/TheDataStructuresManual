@@ -1,3 +1,4 @@
+#include "../../common/input.h"
 /* Recursive binary search tree insertion and inorder traversal. */
 #include <stdio.h>
 #include <stdlib.h>
@@ -47,11 +48,11 @@ int main() {
     int n, data;
 
     printf("Enter number of nodes: ");
-    if (scanf("%d", &n) != 1 || n < 0) return EXIT_FAILURE;
+    if (!readInteger(&n) || n < 0) return EXIT_FAILURE;
 
     printf("Enter values: ");
     for (int i = 0; i < n; i++) {
-        if (scanf("%d", &data) != 1) { free_tree(root); return EXIT_FAILURE; }
+        if (!readInteger(&data)) { free_tree(root); return EXIT_FAILURE; }
         root = insert(root, data);
     }
 

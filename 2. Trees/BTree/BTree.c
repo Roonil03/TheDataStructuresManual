@@ -1,3 +1,4 @@
+#include "../../common/input.h"
 /* B-tree insertion by splitting full children before descent. */
 #include <stdio.h>
 #include <stdlib.h>
@@ -118,14 +119,14 @@ void free_tree(BTreeNode *node) {
 
 int main() {
     int t, n;
-    if (scanf("%d", &t) != 1 || t < 2 || t > INT_MAX / 2) return EXIT_FAILURE;
-    if (scanf("%d", &n) != 1 || n < 0) return EXIT_FAILURE;
+    if (!readInteger(&t) || t < 2 || t > INT_MAX / 2) return EXIT_FAILURE;
+    if (!readInteger(&n) || n < 0) return EXIT_FAILURE;
 
     BTreeNode* root = createNode(t, 1);
 
     for (int i = 0; i < n; i++) {
         int key;
-        if (scanf("%d", &key) != 1) { free_tree(root); return EXIT_FAILURE; }
+        if (!readInteger(&key)) { free_tree(root); return EXIT_FAILURE; }
         root = insert(root, key, t);
     }
 

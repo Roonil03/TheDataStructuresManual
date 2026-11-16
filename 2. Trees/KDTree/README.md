@@ -18,7 +18,7 @@ A **K‐Dimensional Tree (KD‐Tree)** is a space‐partitioning binary tree dat
 
 ## Key Properties
 
-- **Binary Tree Structure**: Each node represents a k‐dimensional point, with every non‐leaf node having exactly two children.
+- **Binary Tree Structure**: Each node represents a k‐dimensional point, with up to two children per node.
 - **Alternating Dimensions**: The splitting dimension cycles through all valid dimensions using the formula: *dimension = depth mod k*.
 - **Space Partitioning**: Each internal node defines a hyperplane that divides the k‐dimensional space into two half‐spaces.
 - **Balanced Construction**: When built optimally using median‐finding algorithms, the tree maintains logarithmic height for efficient operations.
@@ -37,7 +37,7 @@ A **K‐Dimensional Tree (KD‐Tree)** is a space‐partitioning binary tree dat
    8. *node.right* ← recursively build tree(*points* after *median*, *depth* + 1).
    9. Return *node*.
    
-   Time complexity: *O*(*n* log *n*) using efficient median‐finding algorithms.
+   A linear-time median selection and partition at each level gives O(n log n) construction. Sorting each subtree independently takes O(n log² n).
 
 2. **Nearest Neighbor Search**
    **Procedure**
@@ -70,7 +70,7 @@ A **K‐Dimensional Tree (KD‐Tree)** is a space‐partitioning binary tree dat
       ```
    3. Return collected points.
    
-   Time complexity: *O*(*n*^(1−1/*k*) + *m*) where *m* is the number of reported points.
+   For a balanced tree with cyclic splits in fixed dimension k ≥ 2, an orthogonal range query takes O(n^(1−1/k) + m), where m is the number of reported points.
 
 4. **Insertion**
    **Procedure**

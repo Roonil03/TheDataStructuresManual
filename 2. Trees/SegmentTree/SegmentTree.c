@@ -1,3 +1,4 @@
+#include "../../common/input.h"
 /* Iterative range sums with leaves in the second half of the array. */
 #include <stdio.h>
 #include <stdlib.h>
@@ -36,22 +37,24 @@ void update(int pos, int value) {
 }
 
 int main() {
-    if (scanf("%d", &n) != 1 || n < 0 || n > INT_MAX / 2) return EXIT_FAILURE;
+    if (!readInteger(&n) || n < 0 || n > INT_MAX / 2) return EXIT_FAILURE;
 
     tree = (long long*)malloc(2 * n * sizeof(long long));
     if (!tree && n != 0) exit(EXIT_FAILURE);
 
     for (int i = 0; i < n; i++) {
-        if (scanf("%lld", &tree[n + i]) != 1 || tree[n + i] < INT_MIN || tree[n + i] > INT_MAX) { free(tree); return EXIT_FAILURE; }
+        int value;
+        if (!readInteger(&value)) { free(tree); return EXIT_FAILURE; }
+        tree[n + i] = value;
     }
 
     build();
 
-    if (scanf("%d", &q) != 1 || q < 0) { free(tree); return EXIT_FAILURE; }
+    if (!readInteger(&q) || q < 0) { free(tree); return EXIT_FAILURE; }
 
     for (int i = 0; i < q; i++) {
         int l, r;
-        if (scanf("%d %d", &l, &r) != 2 || l < 0 || l > r || r >= n) { free(tree); return EXIT_FAILURE; }
+        if (!readInteger(&l) || !readInteger(&r) || l < 0 || l > r || r >= n) { free(tree); return EXIT_FAILURE; }
         printf("%lld ", query(l, r));
     }
 

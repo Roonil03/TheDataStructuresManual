@@ -1,5 +1,5 @@
 /* The top pointer owns a chain of nodes in last-in, first-out order. */
-#include "../input.h"
+#include "../../common/input.h"
 #include <stdlib.h>
 
 struct Node {

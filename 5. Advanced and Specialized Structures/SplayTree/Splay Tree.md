@@ -17,4 +17,4 @@ cc -std=c11 -Wall -Wextra -Wpedantic SplayTree.c -o /tmp/splay-tree
 /tmp/splay-tree
 ```
 
-Commands are `i <key>` (insert), `d <key>` (delete), `s <key>` (search), `p` (preorder), `n` (inorder), and `q` (quit). Whitespace is ignored before command characters. EOF, an invalid/missing integer operand, and `q` end the session and free the tree. Keys must fit in `int`.
+Commands are `i <key>` (insert), `d <key>` (delete), `s <key>` (search), `p` (preorder), `n` (inorder), and `q` (quit), as whitespace-separated tokens. Commands must be single characters; combined tokens such as `i5` and `np` are invalid. EOF, an invalid/missing integer operand, a command token longer than one byte or containing a NUL byte, and `q` end the session and free the tree. Other unrecognized single-character commands are ignored. Keys must be complete decimal tokens with an optional sign and must fit in `int`; arbitrarily many leading zeros are accepted.

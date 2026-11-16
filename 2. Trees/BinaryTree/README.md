@@ -141,7 +141,7 @@ For node at index i:
 |-----------|--------------|------------|-----------|
 | Search | O(n) | O(n) | O(1) |
 | Insertion | O(h) | O(n) | O(1) |
-| Deletion | O(h) | O(n) | O(1) |
+| Deletion by deepest-rightmost replacement (with a search for the replacement node) | O(n) | O(n) | O(1) |
 | Traversal | O(n) | O(n) | O(n) |
 
 Where h = height of tree, n = number of nodes

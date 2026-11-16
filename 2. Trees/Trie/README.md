@@ -2,7 +2,7 @@
 
 ## Included programs
 
-Both examples read a nonnegative word count, its words, a nonnegative search count, and the query words. Tokens are limited to 255 bytes and stored words use lowercase ASCII `a`–`z` only. Words containing another character are not inserted, and such queries return not found. Exact-word search distinguishes a word from a prefix; inserting a duplicate only keeps its terminal marker. Prefix enumeration and deletion below are background concepts.
+Both examples read a nonnegative word count, its words, a nonnegative search count, and the query words. Counts are complete signed decimal tokens that must fit in a nonnegative `int`. Word tokens are limited to 255 bytes and must use lowercase ASCII `a`–`z` only. An overlong token, embedded NUL byte, invalid character, malformed count, or missing required field ends the session with an error. Exact-word search distinguishes a word from a prefix; inserting a duplicate only keeps its terminal marker. Prefix enumeration and deletion below are background concepts.
 
 Build from this directory (outputs stay in `/tmp`):
 

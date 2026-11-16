@@ -1,3 +1,4 @@
+#include "../../common/input.h"
 /* Red-black insertion with a shared NIL sentinel and parent links. */
 #include <stdio.h>
 #include <stdlib.h>
@@ -151,7 +152,7 @@ int main() {
     struct Node* root = NIL;
     int key;
 
-    while (scanf("%d", &key) == 1) {
+    while (readInteger(&key)) {
         insert(&root, key);
     }
 

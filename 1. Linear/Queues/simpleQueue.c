@@ -1,5 +1,5 @@
 /* Front and rear delimit a linked chain in first-in, first-out order. */
-#include "../input.h"
+#include "../../common/input.h"
 #include <stdlib.h>
 
 struct Node {
