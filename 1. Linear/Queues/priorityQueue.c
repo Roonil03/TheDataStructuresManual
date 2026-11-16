@@ -1,3 +1,4 @@
+/* A sorted linked chain serves lower priorities first and preserves equal-priority order. */
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -11,14 +12,16 @@ typedef struct PriorityQueue {
     Node* head;
 } PriorityQueue;
 
-PriorityQueue* createQueue() {
+PriorityQueue* createQueue(void) {
     PriorityQueue* q = (PriorityQueue*)malloc(sizeof(PriorityQueue));
+    if (q == NULL) return NULL;
     q->head = NULL;
     return q;
 }
 
-void enqueue(PriorityQueue* q, int val, int priority) {
+int enqueue(PriorityQueue* q, int val, int priority) {
     Node* newNode = (Node*)malloc(sizeof(Node));
+    if (newNode == NULL) return 0;
     newNode->val = val;
     newNode->priority = priority;
     newNode->next = NULL;
@@ -33,17 +36,19 @@ void enqueue(PriorityQueue* q, int val, int priority) {
         newNode->next = temp->next;
         temp->next = newNode;
     }
+    return 1;
 }
 
-int dequeue(PriorityQueue* q) {
+int dequeue(PriorityQueue* q, int *value) {
     if (!q->head) {
-        return -1;
+        return 0;
     }
     Node* temp = q->head;
     int val = temp->val;
     q->head = q->head->next;
     free(temp);
-    return val;
+    *value = val;
+    return 1;
 }
 
 int isEmpty(PriorityQueue* q) {
@@ -60,14 +65,18 @@ void freeQueue(PriorityQueue* q) {
     free(q);
 }
 
-int main() {
+int main(void) {
     PriorityQueue* q = createQueue();
-    enqueue(q, 10, 2);
-    enqueue(q, 20, 1);
-    enqueue(q, 30, 3);
-    while (!isEmpty(q)) {
-        printf("%d ", dequeue(q));
+    if (q == NULL) return EXIT_FAILURE;
+    if (!enqueue(q, 10, 2) || !enqueue(q, 20, 1) || !enqueue(q, 30, 3)) {
+        freeQueue(q);
+        return EXIT_FAILURE;
     }
+    while (!isEmpty(q)) {
+        int value;
+        if (dequeue(q, &value)) printf("%d ", value);
+    }
+    putchar('\n');
     freeQueue(q);
     return 0;
 }

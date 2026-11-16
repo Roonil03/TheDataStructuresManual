@@ -1,4 +1,5 @@
-#include <stdio.h>
+/* Front and rear index a five-element circular array; -1 marks empty state. */
+#include "../input.h"
 #include <stdlib.h>
 
 #define SIZE 5
@@ -8,15 +9,16 @@ struct CircularQueue {
     int front, rear;
 };
 
-struct CircularQueue* createQueue() {
+struct CircularQueue* createQueue(void) {
     struct CircularQueue* queue = (struct CircularQueue*)malloc(sizeof(struct CircularQueue));
+    if (queue == NULL) return NULL;
     queue->front = -1;
     queue->rear = -1;
     return queue;
 }
 
 int isFull(struct CircularQueue* queue) {
-    if ((queue->front == 0 && queue->rear == SIZE - 1) || (queue->rear == (queue->front - 1) % (SIZE - 1))) {
+    if ((queue->rear + 1) % SIZE == queue->front) {
         return 1;
     }
     return 0;
@@ -42,10 +44,10 @@ void enqueue(struct CircularQueue* queue, int value) {
     printf("Inserted %d\n", value);
 }
 
-int dequeue(struct CircularQueue* queue) {
+int dequeue(struct CircularQueue* queue, int *value) {
     if (isEmpty(queue)) {
         printf("Queue is empty\n");
-        return -1;
+        return 0;
     }
     int item = queue->items[queue->front];
     if (queue->front == queue->rear) {
@@ -54,15 +56,17 @@ int dequeue(struct CircularQueue* queue) {
     } else {
         queue->front = (queue->front + 1) % SIZE;
     }
-    return item;
+    *value = item;
+    return 1;
 }
 
-int peek(struct CircularQueue* queue) {
+int peek(struct CircularQueue* queue, int *value) {
     if (isEmpty(queue)) {
         printf("Queue is empty\n");
-        return -1;
+        return 0;
     }
-    return queue->items[queue->front];
+    *value = queue->items[queue->front];
+    return 1;
 }
 
 void displayQueue(struct CircularQueue* queue) {
@@ -82,10 +86,14 @@ void displayQueue(struct CircularQueue* queue) {
     printf("\n");
 }
 
-int main() {
+int main(void) {
     struct CircularQueue* queue = createQueue();
+    if (queue == NULL) {
+        fprintf(stderr, "Memory allocation failed.\n");
+        return EXIT_FAILURE;
+    }
     int choice, value;
-    
+
     while (1) {
         printf("\nCircular Queue Operations:\n");
         printf("1. Enqueue\n");
@@ -94,41 +102,40 @@ int main() {
         printf("4. Display Queue\n");
         printf("5. Exit\n");
         printf("Enter your choice: ");
-        scanf("%d", &choice);
-        
+        if (!readInteger(&choice)) goto cleanup;
+
         switch (choice) {
             case 1:
                 printf("Enter value to enqueue: ");
-                scanf("%d", &value);
+                if (!readInteger(&value)) goto cleanup;
                 enqueue(queue, value);
                 break;
-                
+
             case 2:
-                value = dequeue(queue);
-                if (value != -1) {
+                if (dequeue(queue, &value)) {
                     printf("Dequeued value: %d\n", value);
                 }
                 break;
-                
+
             case 3:
-                value = peek(queue);
-                if (value != -1) {
+                if (peek(queue, &value)) {
                     printf("Front value: %d\n", value);
                 }
                 break;
-                
+
             case 4:
                 displayQueue(queue);
                 break;
-                
+
             case 5:
-                free(queue);
-                exit(0);
-                
+                goto cleanup;
+
             default:
                 printf("Invalid choice! Please try again.\n");
         }
     }
-    
+
+cleanup:
+    free(queue);
     return 0;
 }

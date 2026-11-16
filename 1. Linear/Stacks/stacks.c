@@ -1,4 +1,5 @@
-#include <stdio.h>
+/* The top pointer owns a chain of nodes in last-in, first-out order. */
+#include "../input.h"
 #include <stdlib.h>
 
 struct Node {
@@ -8,44 +9,47 @@ struct Node {
 
 struct Node* top = NULL;
 
-void push(int value) {
+int push(int value) {
     struct Node* newNode = (struct Node*)malloc(sizeof(struct Node));
     if (newNode == NULL) {
         printf("Stack overflow! Memory allocation failed.\n");
-        return;
+        return 0;
     }
     newNode->data = value;
     newNode->next = top;
     top = newNode;
+    return 1;
 }
 
-int pop() {
+int pop(int *value) {
     if (top == NULL) {
         printf("Stack underflow! Stack is empty.\n");
-        return -1;
+        return 0;
     }
-    
+
     struct Node* temp = top;
     int popped_value = temp->data;
     top = top->next;
     free(temp);
-    return popped_value;
+    *value = popped_value;
+    return 1;
 }
 
-int peek() {
+int peek(int *value) {
     if (top == NULL) {
         printf("Stack is empty!\n");
-        return -1;
+        return 0;
     }
-    return top->data;
+    *value = top->data;
+    return 1;
 }
 
-void display() {
+void display(void) {
     if (top == NULL) {
         printf("Stack is empty!\n");
         return;
     }
-    
+
     printf("Stack contents (top to bottom):\n");
     struct Node* temp = top;
     while (temp != NULL) {
@@ -54,72 +58,37 @@ void display() {
     }
 }
 
-void clearInputBuffer() {
-    int c;
-    while ((c = getchar()) != '\n' && c != EOF);
-}
-
-int main() {
+int main(void) {
     int choice, value;
-    
     while (1) {
-        printf("\nStack Operations:\n");
-        printf("1. Push\n");
-        printf("2. Pop\n");
-        printf("3. Peek\n");
-        printf("4. Display Stack\n");
-        printf("5. Exit\n");
-        printf("Enter your choice: ");
-        
-        if (scanf("%d", &choice) != 1) {
-            printf("Invalid input! Please enter a number.\n");
-            clearInputBuffer();
-            continue;
-        }
-        
+        printf("\nStack Operations:\n1. Push\n2. Pop\n3. Peek\n4. Display\n5. Exit\nEnter your choice: ");
+        if (!readInteger(&choice)) break;
         switch (choice) {
             case 1:
                 printf("Enter value to push: ");
-                if (scanf("%d", &value) != 1) {
-                    printf("Invalid input! Please enter a number.\n");
-                    clearInputBuffer();
-                    break;
-                }
-                push(value);
-                printf("%d pushed to stack\n", value);
+                if (!readInteger(&value)) goto cleanup;
+                if (push(value)) printf("Inserted %d\n", value);
                 break;
-                
             case 2:
-                value = pop();
-                if (value != -1) {
-                    printf("Popped value: %d\n", value);
-                }
+                if (pop(&value)) printf("Popped value: %d\n", value);
                 break;
-                
             case 3:
-                value = peek();
-                if (value != -1) {
-                    printf("Top value: %d\n", value);
-                }
+                if (peek(&value)) printf("Top value: %d\n", value);
                 break;
-                
             case 4:
                 display();
                 break;
-                
             case 5:
-                printf("Exiting program...\n");
-                while (top != NULL) {
-                    struct Node* temp = top;
-                    top = top->next;
-                    free(temp);
-                }
-                exit(0);
-                
+                goto cleanup;
             default:
                 printf("Invalid choice! Please try again.\n");
-        }        
-        clearInputBuffer();
-    }    
+        }
+    }
+cleanup:
+    while (top != NULL) {
+        struct Node *next = top->next;
+        free(top);
+        top = next;
+    }
     return EXIT_SUCCESS;
 }

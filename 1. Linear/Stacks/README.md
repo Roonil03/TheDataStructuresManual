@@ -16,3 +16,9 @@ A stack is a linear data structure that follows the Last-In-First-Out (LIFO) pri
 
     - Views top element without removing
     - Returns null/error if stack empty
+
+### Examples in this directory
+
+`stacks.c` uses a linked list and accepts whitespace-separated signed `int` values. Push returns a success flag. Pop and peek return a success flag and write through an output pointer, allowing -1 to be stored normally. The program frees remaining nodes on exit, EOF, or malformed input. Display traverses the list in O(n); push, pop, and peek cost O(1).
+
+`stacks.asm` targets Linux x86-64 NASM, accepts a digit (0–9) per whitespace-separated token, and supports push, pop, and peek. EOF exits cleanly; malformed input exits with an error. Nodes are allocated with `mmap`, and popped nodes are released with `munmap`. The kernel releases remaining mappings at exit.

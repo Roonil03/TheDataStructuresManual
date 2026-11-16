@@ -1,4 +1,5 @@
-#include <stdio.h>
+/* Nodes carry next and previous links, beginning at the head pointer. */
+#include "../input.h"
 #include <stdlib.h>
 
 struct Node {
@@ -11,6 +12,7 @@ struct Node* head = NULL;
 
 struct Node* createNode(int data) {
     struct Node* newNode = (struct Node*)malloc(sizeof(struct Node));
+    if (newNode == NULL) return NULL;
     newNode->data = data;
     newNode->next = NULL;
     newNode->prev = NULL;
@@ -19,6 +21,10 @@ struct Node* createNode(int data) {
 
 void insertAtEnd(int data) {
     struct Node* newNode = createNode(data);
+    if (newNode == NULL) {
+        fprintf(stderr, "Memory allocation failed.\n");
+        return;
+    }
     if (head == NULL) {
         head = newNode;
         return;
@@ -32,7 +38,7 @@ void insertAtEnd(int data) {
 
 void deleteNode(int key) {
     if (head == NULL) return;
-    
+
     struct Node* temp = head;
     if (head->data == key) {
         head = head->next;
@@ -41,20 +47,20 @@ void deleteNode(int key) {
         free(temp);
         return;
     }
-    
+
     while (temp != NULL && temp->data != key)
         temp = temp->next;
-    
+
     if (temp == NULL) return;
-    
+
     if (temp->next != NULL)
         temp->next->prev = temp->prev;
-    
+
     temp->prev->next = temp->next;
     free(temp);
 }
 
-void display() {
+void display(void) {
     struct Node* temp = head;
     if (temp == NULL) {
         printf("List is empty\n");
@@ -67,37 +73,43 @@ void display() {
     printf("NULL\n");
 }
 
-int main() {
+int main(void) {
     int choice, data;
-    
+
     while (1) {
         printf("\n1. Insert\n2. Delete\n3. Display\n4. Exit\n");
         printf("Enter your choice: ");
-        scanf("%d", &choice);
-        
+        if (!readInteger(&choice)) goto cleanup;
+
         switch (choice) {
             case 1:
                 printf("Enter data to insert: ");
-                scanf("%d", &data);
+                if (!readInteger(&data)) goto cleanup;
                 insertAtEnd(data);
                 break;
-                
+
             case 2:
                 printf("Enter data to delete: ");
-                scanf("%d", &data);
+                if (!readInteger(&data)) goto cleanup;
                 deleteNode(data);
                 break;
-                
+
             case 3:
                 display();
                 break;
-                
+
             case 4:
-                exit(0);
-                
+                goto cleanup;
+
             default:
                 printf("Invalid choice\n");
         }
+    }
+cleanup:
+    while (head != NULL) {
+        struct Node *next = head->next;
+        free(head);
+        head = next;
     }
     return 0;
 }
