@@ -1,47 +1,15 @@
-# Double Connected Edge List (DCEL)
+# Doubly connected edge list (DCEL)
 
-A half-edge data structure for representing planar subdivisions. Each undirected edge is stored as a pair of directed half-edges (twins), enabling O(1) traversal of faces, vertices, and edge boundaries.
+Each edge of a planar subdivision has two directed half-edges. Each half-edge starts at its origin vertex and ends at its twin’s origin. Following successive half-edges with the same face on their left traces that face’s boundary.
 
-## Memory Mechanics
+## C representation
 
-```
-DCEL struct (40 bytes):
-┌──────────────┬──────────────┬──────────────┐
-│ verts_ptr(8) │ hedges_ptr(8)│ faces_ptr(8) │
-├──────────────┼──────────────┼──────────────┤
-│   nv (4)     │   nhe (4)    │   nf (4)     │
-└──────────────┴──────────────┴──────────────┘
+The C example divides a square along a diagonal. It links three cycles, one for each triangle and one clockwise cycle around the exterior. Each face stores a starting half-edge. Each vertex stores one outgoing half-edge.
 
-Vertex (32 bytes):              HalfEdge (48 bytes):
-┌──────────┬──────────┐        ┌──────────────┬──────────────┐
-│  x (8B)  │  y (8B)  │        │ origin* (8B) │  twin*  (8B) │
-├──────────┼──────────┤        ├──────────────┼──────────────┤
-│ inc* (8) │  id (4)  │        │  next*  (8B) │  prev*  (8B) │
-└──────────┴──────────┘        ├──────────────┼──────────────┤
-                               │  face*  (8B) │   id    (4B) │
-Face (16 bytes):               └──────────────┴──────────────┘
-┌──────────┬──────────┐
-│ edge*(8) │  id (4)  │
-└──────────┴──────────┘
-```
+Vertices, half-edges and faces live in separate growable arrays. Links use integer indices, so growing an array preserves existing links. A missing link has index `-1`. On x86-64, a vertex takes 24 bytes, a half-edge 24 bytes and a face 8 bytes. The 48-byte header holds the three arrays, counts and capacities.
 
-- **Twin pairing:** Every edge becomes two half-edges allocated consecutively. `HE[2k]` and `HE[2k+1]` are always twins. This eliminates twin-lookup overhead.
-- **Contiguous arrays:** Vertices, half-edges, and faces each live in their own `realloc`-growable arrays. Pointers between components are raw `Vertex*`, `HalfEdge*`, `Face*` into these arrays.
-- **Face traversal:** Following `next` pointers from any half-edge on a face boundary returns to the start, forming a cycle. Edge count per face = cycle length.
-- **Pointer invalidation:** `realloc` on any array invalidates all cross-pointers. In production, index-based references are safer.
+Adding a vertex, a face or a twin pair takes amortized O(1) time. Linking two half-edges takes O(1) and requires matching endpoints and faces. Counting a closed face boundary takes O(k) for k half-edges. The count is zero for a missing or incomplete boundary. Storage is O(V + E + F).
 
-## Uses
+## Assembly representation
 
-- **Computational geometry:** Voronoi diagrams and Delaunay triangulations store planar subdivisions as DCELs for efficient face/edge enumeration.
-- **Mesh processing:** 3D modeling software (Blender, CGAL) uses half-edge structures for mesh traversal, subdivision, and Boolean operations.
-- **Map overlay:** GIS systems overlay polygon layers by merging their DCEL representations.
-
-## Complexities
-
-| Operation           | Time   | Notes                          |
-|:--------------------|:-------|:-------------------------------|
-| Add Vertex          | O(1)*  | Amortized (array append)       |
-| Add Edge (pair)     | O(1)*  | Allocate two consecutive HEs   |
-| Face Traversal      | O(k)   | k = edges bounding the face    |
-| Vertex Neighbors    | O(k)   | k = degree, via twin→next cycle|
-| **Space**           | **O(V + E + F)** | 32V + 48·2E + 16F bytes |
+The assembly example allocates fixed-capacity arrays and uses pointers for links. Vertices, half-edges and faces occupy 32, 48 and 16 bytes respectively on x86-64. The demo creates vertex and face records and joins vertices with twin pairs. The face cycles are illustrated in the C version.

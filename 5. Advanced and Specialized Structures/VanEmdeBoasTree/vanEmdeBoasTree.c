@@ -1,44 +1,76 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include <math.h>
+#include "../../common/input.h"
 
+/* The minimum is stored separately; the summary indexes nonempty clusters. */
 typedef struct vEB {
-    int u, min, max;
+    int u, min, max, lower, upper;
     struct vEB *summary;
     struct vEB **cluster;
 } vEB;
 
-vEB* vEB_create(int u) {
-    vEB *V = malloc(sizeof *V);
-    V->u = u; V->min = V->max = -1;
-    if (u <= 2) { V->summary = NULL; V->cluster = NULL; }
-    else {
-        int m = ceil(sqrt(u));
-        V->summary = vEB_create(m);
-        V->cluster = calloc(m, sizeof(vEB*));
-        for (int i=0; i<m; i++) V->cluster[i] = vEB_create(floor(sqrt(u)));
+static void *checked_alloc(size_t size) {
+    void *p = malloc(size);
+    if (!p) {
+        fputs("Allocation failed\n", stderr);
+        exit(EXIT_FAILURE);
+    }
+    return p;
+}
+
+static int lower_size(int u) {
+    int bits = 0;
+    for (int n = u; n > 1; n /= 2) bits++;
+    return 1 << (bits / 2);
+}
+
+int high(int x, int u) { return x / lower_size(u); }
+int low(int x, int u) { return x % lower_size(u); }
+int idx(int h, int l, int u) { return h * lower_size(u) + l; }
+
+vEB *vEB_create(int u) {
+    if (u < 2 || (u & (u - 1))) return NULL;
+    vEB *V = checked_alloc(sizeof *V);
+    V->u = u;
+    V->min = V->max = -1;
+    V->lower = lower_size(u);
+    V->upper = u / V->lower;
+    V->summary = NULL;
+    V->cluster = NULL;
+    if (u > 2) {
+        int lower = V->lower, upper = V->upper;
+        V->summary = vEB_create(upper);
+        V->cluster = checked_alloc((size_t)upper * sizeof *V->cluster);
+        for (int i = 0; i < upper; i++) V->cluster[i] = vEB_create(lower);
     }
     return V;
 }
 
-int high(int x, int u) { return x / ceil(sqrt(u)); }
-int low(int x, int u)  { return x % (int)ceil(sqrt(u)); }
-int idx(int h, int l, int u){ return h*ceil(sqrt(u)) + l; }
+int vEB_member(vEB *V, int x) {
+    if (!V || x < 0 || x >= V->u || V->min == -1) return 0;
+    if (x == V->min || x == V->max) return 1;
+    if (V->u == 2) return 0;
+    return vEB_member(V->cluster[x / V->lower], x % V->lower);
+}
 
-void vEB_insert(vEB *V, int x) {
+static void insert_absent(vEB *V, int x) {
     if (V->min == -1) { V->min = V->max = x; return; }
     if (x < V->min) { int t = V->min; V->min = x; x = t; }
     if (V->u > 2) {
-        int h = high(x, V->u), l = low(x, V->u);
+        int h = x / V->lower, l = x % V->lower;
         if (V->cluster[h]->min == -1) {
-            vEB_insert(V->summary, h);
+            insert_absent(V->summary, h);
             V->cluster[h]->min = V->cluster[h]->max = l;
-        } else vEB_insert(V->cluster[h], l);
+        } else insert_absent(V->cluster[h], l);
     }
     if (x > V->max) V->max = x;
 }
 
-void vEB_delete(vEB *V, int x) {
+void vEB_insert(vEB *V, int x) {
+    if (V && x >= 0 && x < V->u && !vEB_member(V, x)) insert_absent(V, x);
+}
+
+static void delete_present(vEB *V, int x) {
     if (V->min == V->max) { V->min = V->max = -1; return; }
     if (V->u == 2) {
         if (x == 0) V->min = 1; else V->max = 0;
@@ -46,73 +78,83 @@ void vEB_delete(vEB *V, int x) {
     }
     if (x == V->min) {
         int first = V->summary->min;
-        x = idx(first, V->cluster[first]->min, V->u);
+        x = first * V->lower + V->cluster[first]->min;
         V->min = x;
     }
-    int h = high(x, V->u), l = low(x, V->u);
-    vEB_delete(V->cluster[h], l);
-    if (V->cluster[h]->min == -1)
-        vEB_delete(V->summary, h);
+    int h = x / V->lower, l = x % V->lower;
+    delete_present(V->cluster[h], l);
+    if (V->cluster[h]->min == -1) delete_present(V->summary, h);
     if (x == V->max) {
         int smax = V->summary->max;
         if (smax == -1) V->max = V->min;
-        else V->max = idx(smax, V->cluster[smax]->max, V->u);
+        else V->max = smax * V->lower + V->cluster[smax]->max;
     }
 }
 
-int vEB_member(vEB *V, int x) {
-    if (x == V->min || x == V->max) return 1;
-    if (V->u == 2) return 0;
-    return vEB_member(V->cluster[high(x, V->u)], low(x, V->u));
+void vEB_delete(vEB *V, int x) {
+    if (vEB_member(V, x)) delete_present(V, x);
 }
 
 int vEB_successor(vEB *V, int x) {
-    if (V->u == 2) {
-        if (x == 0 && V->max == 1) return 1;
-        return -1;
-    }
-    if (V->min != -1 && x < V->min) return V->min;
-    int h = high(x, V->u), l = low(x, V->u);
-    int maxLow = V->cluster[h]->max;
-    if (maxLow != -1 && l < maxLow)
-        return idx(h, vEB_successor(V->cluster[h], l), V->u);
-    int succCluster = vEB_successor(V->summary, h);
-    if (succCluster == -1) return -1;
-    return idx(succCluster, V->cluster[succCluster]->min, V->u);
+    if (!V || V->min == -1 || x >= V->max) return -1;
+    if (x < V->min) return V->min;
+    if (V->u == 2) return 1;
+    int h = x / V->lower, l = x % V->lower;
+    int max_low = V->cluster[h]->max;
+    if (max_low != -1 && l < max_low)
+        return h * V->lower + vEB_successor(V->cluster[h], l);
+    int succ_cluster = vEB_successor(V->summary, h);
+    if (succ_cluster == -1) return -1;
+    return succ_cluster * V->lower + V->cluster[succ_cluster]->min;
 }
 
 int vEB_predecessor(vEB *V, int x) {
-    if (V->u == 2) {
-        if (x == 1 && V->min == 0) return 0;
-        return -1;
-    }
-    if (V->max != -1 && x > V->max) return V->max;
-    int h = high(x, V->u), l = low(x, V->u);
-    int minLow = V->cluster[h]->min;
-    if (minLow != -1 && l > minLow)
-        return idx(h, vEB_predecessor(V->cluster[h], l), V->u);
-    int predCluster = vEB_predecessor(V->summary, h);
-    if (predCluster == -1) {
-        if (V->min != -1 && x > V->min) return V->min;
-        return -1;
-    }
-    return idx(predCluster, V->cluster[predCluster]->max, V->u);
+    if (!V || V->min == -1 || x <= V->min) return -1;
+    if (x > V->max) return V->max;
+    if (V->u == 2) return 0;
+    int h = x / V->lower, l = x % V->lower;
+    int min_low = V->cluster[h]->min;
+    if (min_low != -1 && l > min_low)
+        return h * V->lower + vEB_predecessor(V->cluster[h], l);
+    int pred_cluster = vEB_predecessor(V->summary, h);
+    if (pred_cluster == -1) return V->min;
+    return pred_cluster * V->lower + V->cluster[pred_cluster]->max;
 }
 
-int main() {
+void vEB_free(vEB *V) {
+    if (!V) return;
+    if (V->u > 2) {
+        for (int i = 0; i < V->upper; i++) vEB_free(V->cluster[i]);
+        free(V->cluster);
+        vEB_free(V->summary);
+    }
+    free(V);
+}
+
+int main(void) {
     vEB *T = vEB_create(16);
-    char op; int x;
-    while (scanf(" %c", &op)==1) {
+    char command[2];
+    int x;
+    while (readToken(command, sizeof command)) {
+        char op = command[0];
+        if (op == 'q') break;
+        if (op == 'p') {
+            printf("Min: %d  Max: %d\n", T->min, T->max);
+            continue;
+        }
+        if (op != 'i' && op != 'd' && op != 'm' && op != 's' && op != 'r') continue;
+        if (!readInteger(&x)) break;
         switch (op) {
-            case 'i': scanf("%d",&x); vEB_insert(T,x); printf("Inserted %d\n",x); break;
-            case 'd': scanf("%d",&x); vEB_delete(T,x); printf("Deleted %d\n",x); break;
-            case 'm': scanf("%d",&x); 
-                      printf("%s\n", vEB_member(T,x)?"Found":"Not found");
-                      break;
-            case 's': scanf("%d",&x); printf("Successor of %d: %d\n",x,vEB_successor(T,x)); break;
-            case 'p': printf("Min: %d  Max: %d\n",T->min,T->max); break;
-            case 'q': return 0;
+            case 'i':
+                if (x < 0 || x >= T->u) printf("Out of range\n");
+                else { vEB_insert(T, x); printf("Inserted %d\n", x); }
+                break;
+            case 'd': vEB_delete(T, x); printf("Deleted %d\n", x); break;
+            case 'm': printf("%s\n", vEB_member(T, x) ? "Found" : "Not found"); break;
+            case 's': printf("Successor of %d: %d\n", x, vEB_successor(T, x)); break;
+            case 'r': printf("Predecessor of %d: %d\n", x, vEB_predecessor(T, x)); break;
         }
     }
+    vEB_free(T);
     return 0;
 }

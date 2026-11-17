@@ -9,7 +9,7 @@ To efficiently store and manipulate sparse matrices, several storage formats are
 
 1. Compressed Sparse Row (CSR) Format:
 
-    - Description: Stores only the non-zero elements and their row indices, along with pointers to the start of each row.
+    - Description: Stores nonzero elements and their column indices, along with pointers to the start of each row.
     - Components:
         - values: Array of non-zero elements.
         - column_indices: Array of column indices corresponding to each non-zero element.
@@ -32,4 +32,8 @@ To efficiently store and manipulate sparse matrices, several storage formats are
         - data: Array of non-zero elements.
     - Use Case: Simple and easy to construct, useful for initializing sparse matrices.
 
-    
+### Example and representation details
+
+`sparseMatrix.c` converts a fixed 4×5 matrix to CSR, CSC, and COO, prints their arrays, and releases all allocated storage. Indices are zero-based. CSR row pointers have `rows + 1` entries; CSC column pointers have `cols + 1` entries. Their final entry equals the nonzero count, so an empty row or column repeats the preceding pointer.
+
+The conversion functions return 1 on success or 0 on invalid dimensions, an unrepresentable nonzero count/allocation size, or allocation failure. Dimensions and nnz must fit in `int`; the dense cell count m×n need not fit in `int`. Pass an unused output structure and free its arrays before reusing it. Empty matrices and matrices containing only zeros are supported. CSR and COO preserve row-major order; CSC preserves column-major order. Each conversion scans all m×n input cells, so it costs O(mn) time. Output storage is O(nnz + m) for CSR, O(nnz + n) for CSC, and O(nnz) for COO, where nnz is the number of nonzero entries.

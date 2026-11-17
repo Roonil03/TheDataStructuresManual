@@ -1,5 +1,17 @@
 # Trie
 
+## Included programs
+
+Both examples read a nonnegative word count, its words, a nonnegative search count, and the query words. Counts are complete signed decimal tokens that must fit in a nonnegative `int`. Word tokens are limited to 255 bytes and must use lowercase ASCII `a`–`z` only. An overlong token, embedded NUL byte, invalid character, malformed count, or missing required field ends the session with an error. Exact-word search distinguishes a word from a prefix; inserting a duplicate only keeps its terminal marker. Prefix enumeration and deletion below are background concepts.
+
+Build from this directory (outputs stay in `/tmp`):
+
+```sh
+gcc -std=c11 -Wall -Wextra "Trie.c" -o /tmp/trie
+nasm -f elf64 "Trie.asm" -o /tmp/tree.o
+gcc -no-pie /tmp/tree.o -o /tmp/tree-asm
+```
+
 ## Overview of Tries
 
 A **Trie** (pronounced "try") is a specialized tree-like data structure designed for efficient storage and retrieval of strings, particularly when dealing with collections sharing common prefixes. Unlike binary search trees that compare entire keys at each node, tries break down strings into individual characters, creating a path where each node represents a single character in the sequence. This unique approach enables tries to excel in prefix-based operations, making them invaluable for applications requiring fast string lookups and prefix matching.

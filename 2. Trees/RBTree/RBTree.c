@@ -1,3 +1,5 @@
+#include "../../common/input.h"
+/* Red-black insertion with a shared NIL sentinel and parent links. */
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -16,6 +18,7 @@ struct Node* NIL;
 
 struct Node* createNode(int key) {
     struct Node* node = malloc(sizeof(struct Node));
+    if (!node) exit(EXIT_FAILURE);
     node->key = key;
     node->color = RED;
     node->left = NIL;
@@ -99,7 +102,7 @@ void insert(struct Node** root, int key) {
     struct Node* z = createNode(key);
     struct Node* y = NIL;
     struct Node* x = *root;
-    
+
     while (x != NIL) {
         y = x;
         if (z->key < x->key)
@@ -114,14 +117,14 @@ void insert(struct Node** root, int key) {
         y->left = z;
     else
         y->right = z;
-    
+
     if (z->parent == NIL) {
         z->color = BLACK;
         return;
     }
     if (z->parent->parent == NIL)
         return;
-    
+
     insertFixup(root, z);
 }
 
@@ -133,20 +136,30 @@ void inorder(struct Node* root) {
     }
 }
 
+void free_tree(struct Node *node) {
+    if (node == NIL) return;
+    free_tree(node->left);
+    free_tree(node->right);
+    free(node);
+}
+
 int main() {
     NIL = malloc(sizeof(struct Node));
+    if (!NIL) exit(EXIT_FAILURE);
     NIL->color = BLACK;
     NIL->left = NIL->right = NIL->parent = NIL;
-    
+
     struct Node* root = NIL;
     int key;
-    
-    while (scanf("%d", &key) == 1) {
+
+    while (readInteger(&key)) {
         insert(&root, key);
     }
-    
+
     inorder(root);
     printf("\n");
-    
+
+    free_tree(root);
+    free(NIL);
     return 0;
 }

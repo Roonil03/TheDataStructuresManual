@@ -1,5 +1,17 @@
 # Binary Tree
 
+## Included programs
+
+The C program reads a nonnegative node count followed by its values; NASM reads values until EOF. Both fill the current node’s left child, then its right child, then recurse into the left subtree. This simple insertion policy is not level-order insertion and does not guarantee a complete tree. Both print inorder and preorder traversals; C includes prompts and labels. Deletion, search, postorder, and breadth-first traversal below are background algorithms.
+
+Build from this directory (outputs stay in `/tmp`):
+
+```sh
+gcc -std=c11 -Wall -Wextra "BinaryTree.c" -o /tmp/binarytree
+nasm -f elf64 "BinaryTree.asm" -o /tmp/tree.o
+gcc -no-pie /tmp/tree.o -o /tmp/tree-asm
+```
+
 ## Overview
 
 A Binary Tree is a hierarchical data structure where each node can have at most two children, referred to as the left child and right child. It is a fundamental data structure that forms the foundation for more specialized tree structures like Binary Search Trees, AVL Trees, and Expression Trees.
@@ -17,7 +29,7 @@ A Binary Tree is a hierarchical data structure where each node can have at most 
 ### Key Properties
 1. **Maximum Children**: Each node can have at most 2 children
 2. **Node Degree**: Maximum degree of any node is 3 (one parent + two children)
-3. **Height Relationship**: For a tree with height h, minimum nodes = h+1, maximum nodes = 2^h - 1
+3. **Height Relationship**: For a tree with height h, minimum nodes = h+1, maximum nodes = 2^(h+1) - 1
 4. **Leaf Nodes**: Number of leaf nodes = Number of nodes with 2 children + 1
 
 
@@ -75,7 +87,7 @@ Space Complexity: O(w) where w is maximum width
 
 #### Deletion
 - Three cases: leaf node, node with one child, node with two children
-- For nodes with two children, replace with inorder successor/predecessor
+- A common general binary-tree deletion policy replaces the value with the deepest rightmost node, then removes that node
 
 #### Search
 - Linear search through traversal
@@ -129,7 +141,7 @@ For node at index i:
 |-----------|--------------|------------|-----------|
 | Search | O(n) | O(n) | O(1) |
 | Insertion | O(h) | O(n) | O(1) |
-| Deletion | O(h) | O(n) | O(1) |
+| Deletion by deepest-rightmost replacement (with a search for the replacement node) | O(n) | O(n) | O(1) |
 | Traversal | O(n) | O(n) | O(n) |
 
 Where h = height of tree, n = number of nodes

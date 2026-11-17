@@ -1,9 +1,9 @@
 section .data
     fmt_put:     db "Put %d -> %d", 10, 0
     fmt_get:     db "Get %d -> %d (found=%d)", 10, 0
+    fmt_missing: db "Get %d -> not found (found=0)", 10, 0
     fmt_info:    db "HashMap: size=%d capacity=%d", 10, 0
     fmt_contains:db "Contains %d: %d", 10, 0
-    fmt_pass:    db "All tests passed.", 10, 0
 
 HM_CAP       equ 0
 HM_SIZE      equ 4
@@ -16,7 +16,7 @@ NODE_NEXT    equ 8
 NODE_SIZE    equ 16
 
 section .text
-    global main, hashmap_create, hashmap_put, hashmap_get, hashmap_remove, hashmap_free
+    global main, hashmap_create, hashmap_put, hashmap_get, hashmap_contains, hashmap_remove, hashmap_free
     extern malloc, calloc, free, printf
 
 hashmap_create:
@@ -26,10 +26,14 @@ hashmap_create:
     push r12
     sub rsp, 16
 
+    test edi, edi
+    jle .invalid
     mov r12d, edi
 
     mov edi, HM_STRUCT
     call malloc
+    test rax, rax
+    jz .done
     mov rbx, rax
     mov dword [rbx + HM_CAP], r12d
     mov dword [rbx + HM_SIZE], 0
@@ -37,9 +41,18 @@ hashmap_create:
     movsxd rdi, r12d
     mov esi, 8
     call calloc
+    test rax, rax
+    jnz .storage_ready
+    mov rdi, rbx
+    call free
+.invalid:
+    xor eax, eax
+    jmp .done
+.storage_ready:
     mov [rbx + HM_BUCKETS], rax
 
     mov rax, rbx
+.done:
     add rsp, 16
     pop r12
     pop rbx
@@ -96,6 +109,8 @@ hashmap_put:
 .put_new:
     mov edi, NODE_SIZE
     call malloc
+    test rax, rax
+    jz .put_done
 
     mov dword [rax + NODE_KEY], r12d
     mov dword [rax + NODE_VAL], r13d
@@ -127,6 +142,8 @@ hashmap_get:
     mov rbx, rdi
     mov r12d, esi
     mov r13, rdx
+    test rdx, rdx
+    jz .get_not_found
 
     mov edi, r12d
     mov esi, [rbx + HM_CAP]
@@ -201,6 +218,40 @@ hashmap_contains:
     pop rbp
     ret
 
+hashmap_remove:
+    push rbx
+    push r12
+    sub rsp, 8
+    mov rbx, rdi
+    mov r12d, esi
+    mov edi, esi
+    mov esi, [rbx + HM_CAP]
+    call hashmap_hash
+    mov rdx, [rbx + HM_BUCKETS]
+    lea rcx, [rdx + rax*8]
+.search:
+    mov rdi, [rcx]
+    test rdi, rdi
+    jz .missing
+    cmp [rdi + NODE_KEY], r12d
+    je .unlink
+    lea rcx, [rdi + NODE_NEXT]
+    jmp .search
+.unlink:
+    mov rdx, [rdi + NODE_NEXT]
+    mov [rcx], rdx
+    dec dword [rbx + HM_SIZE]
+    call free
+    mov eax, 1
+    jmp .done
+.missing:
+    xor eax, eax
+.done:
+    add rsp, 8
+    pop r12
+    pop rbx
+    ret
+
 hashmap_free:
     push rbp
     mov rbp, rsp
@@ -256,6 +307,8 @@ main:
 
     mov edi, 8
     call hashmap_create
+    test rax, rax
+    jz .failure
     mov rbx, rax
 
     mov rdi, rbx
@@ -306,6 +359,8 @@ main:
     mov rdi, rbx
     mov esi, 20
     call hashmap_get
+    test eax, eax
+    jz .first_missing
     mov r8d, eax
     mov ecx, [rbp - 20]
     lea rdi, [rel fmt_get]
@@ -314,6 +369,13 @@ main:
     mov ecx, r8d
     xor eax, eax
     call printf
+    jmp .first_reported
+.first_missing:
+    lea rdi, [rel fmt_missing]
+    mov esi, 20
+    xor eax, eax
+    call printf
+.first_reported:
 
     mov rdi, rbx
     mov esi, 20
@@ -324,6 +386,8 @@ main:
     mov rdi, rbx
     mov esi, 20
     call hashmap_get
+    test eax, eax
+    jz .second_missing
     mov r8d, eax
     mov ecx, [rbp - 20]
     lea rdi, [rel fmt_get]
@@ -332,15 +396,22 @@ main:
     mov ecx, r8d
     xor eax, eax
     call printf
-
-    lea rdi, [rel fmt_pass]
+    jmp .second_reported
+.second_missing:
+    lea rdi, [rel fmt_missing]
+    mov esi, 20
     xor eax, eax
     call printf
+.second_reported:
 
     mov rdi, rbx
     call hashmap_free
 
     xor eax, eax
+    jmp .done
+.failure:
+    mov eax, 1
+.done:
     add rsp, 24
     pop rbx
     pop rbp

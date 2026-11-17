@@ -13,9 +13,13 @@ This repository contains the most used and important Data Structures in an attem
 
 </div>
 
-<!-- This repository contains implementation maps and breakdowns of foundational and complex Data Structures, heavily focusing on low-level interactions to explore exactly how they function and lay out within system memory. -->
-
 ---
+
+## C input conventions
+
+Interactive integer input in the linear and tree examples, plus Fibonacci heap, splay tree, and van Emde Boas tree, uses [`common/input.h`](./common/input.h). Each integer is a complete whitespace-separated decimal token: an optional `+` or `-`, followed by one or more ASCII digits. Values must fit in `int`; arbitrary leading zeros are accepted. Each driver also checks its own count, coordinate, or index bounds. Malformed tokens, including embedded NUL bytes and numeric suffixes, stop input before that token changes the data structure. EOF ends input and releases allocated storage.
+
+Word and command readers enforce the byte limits documented with each example and reject embedded NUL bytes. The C R-tree accepts complete finite floating-point coordinate tokens of at most 127 bytes and rejects range errors.
 
 ## Repository Index
 
@@ -26,40 +30,36 @@ Select a module category below to view the individual algorithms, memory configu
     * [Arrays](./1.%20Linear/Arrays/)
     * [Matrix](./1.%20Linear/Matrix/)
     * [Sparse Matrix](./1.%20Linear/SparseMatrix/)
-* **Linked Lists**
-    * [Singly Linked List](./1.%20Linear/Linked%List/SinglyLinkedList/)
-    * [Doubly Linked List](./1.%20Linear/LinkedList/DoublyLinkedList/)
-    * [Circular Linked List](./1.%20Linear/LinkedList/CircularLinkedList/)
+* [Linked lists (singly, doubly and circular)](./1.%20Linear/LinkedLists/)
 * **Sequential Access**
-    * [Stack](./1.%20Linear/Stack/)
+    * [Stack](./1.%20Linear/Stacks/)
     * [Queues (Simple, Circular, Priority, Deque)](./1.%20Linear/Queues/)
 
 ### 2. Trees
 * **Binary & Self-Balancing Search Trees**
     * [Binary Tree](./2.%20Trees/BinaryTree/)
-    * [Binary Search Trees (BST)](./2.%20Trees/BinarySearchTrees/)
-    * [AVL Trees](./2.%20Trees/AVLTrees/)
-    * [Red-Black Trees](./2.%20Trees/Red-BlackTrees/)
-* **Heaps**
-    * [Min Heap](./2.%20Trees/Heap/Minheap/)
-    * [Max Heap](./2.%20Trees/Heap/Maxheap/)
+    * [Binary Search Trees (BST)](./2.%20Trees/BinarySearchTree/)
+    * [AVL Trees](./2.%20Trees/AVLTree/)
+    * [Red-Black Trees](./2.%20Trees/RBTree/)
+* [Min and max heaps](./2.%20Trees/Heap/)
 * **String & Range Query Structures**
-    * [Segment Trees](./2.%20Trees/SegmentTrees/)
-    * [Fenwick Trees (BIT)](./2.%20Trees/FenwickTrees/)
+    * [Segment Trees](./2.%20Trees/SegmentTree/)
+    * [Fenwick Trees (BIT)](./2.%20Trees/FenwickTree/)
     * [Trie](./2.%20Trees/Trie/)
     * [Suffix Tree](./2.%20Trees/SuffixTree/)
 * **Multi-Dimensional & Multi-Way Trees**
-    * [B-Tree / B+ Tree](./2.%20Trees/B-Tree/)
+    * [B-tree](./2.%20Trees/BTree/)
+    * [B+ tree](./2.%20Trees/B+Tree/)
     * [KD Tree](./2.%20Trees/KDTree/)
     * [Quad Tree](./2.%20Trees/QuadTree/)
-    * [Octree](./2.%20Trees/Octree/)
-    * [R-Tree](./2.%20Trees/R-Tree/)
+    * [Octree](./2.%20Trees/Octrees/)
+    * [R-Tree](./2.%20Trees/RTrees/)
 
 ### 3. Graphs
 * [Digraph](./3.%20Graphs/Digraph/)
-* [Adjacency Matrix](./3.%20Graphs/AdjascencyMatrix/)
-* [Adjacency List](./3.%20Graphs/AdjascencyList/)
-* [Double Connected Edge List (DCEL)](./3.%20Graphs/DoubleConnectedEdgeList\(DCEL\)/)
+* [Adjacency Matrix](./3.%20Graphs/AdjacencyMatrix/)
+* [Adjacency List](./3.%20Graphs/AdjacencyList/)
+* [Doubly Connected Edge List (DCEL)](./3.%20Graphs/DoubleConnectedEdgeList/)
 
 ### 4. Hash-Based
 * [Hash Table](./4.%20Hash-Based/HashTable/)
@@ -75,60 +75,3 @@ Select a module category below to view the individual algorithms, memory configu
 * [Cartesian Tree](./5.%20Advanced%20and%20Specialized%20Structures/CartesianTree/)
 * [Interval Tree](./5.%20Advanced%20and%20Specialized%20Structures/IntervalTree/)
 * [Persistent Data Structures](./5.%20Advanced%20and%20Specialized%20Structures/PersistentDataStructures/)
-<!-- 
-# Data Structures:
-This repository contains the following data structures:
-1. <b>Linear Structures:</b>
-    - Arrays
-    - Linked List:
-        - Singly Linked List
-        - Doubly Linked List
-        - Circular Linked List
-    - Stack
-    - Queues:
-        - Simple Queue
-        - Circular Queue
-        - Priority Queue
-        - Deque <i>(Double-ended queue)</i>
-    - Matrix
-    - Sparse Matrix
-
-2. <b>Trees:</b>
-    - Binary Tree
-    - Binary Search Trees
-    - AVL Trees
-    - Red-Black Trees
-    - Segment Trees
-    - Fenwick Trees
-    - B- Tree
-    - B+ Tree
-    - Trie
-    - Suffix Tree
-    - Heap
-        - Min heap
-        - Max heap
-    - KD Tree
-    - Quad Tree
-    - Octree
-    - R-Tree
-
-3. <b>Graphs:</b>
-    - Digraph
-    - Adjascency Matrix
-    - Adjascency List
-    - Double Connected Edge List (DCEL)
-
-4. <b>Hash-Based:</b>
-    - Hash Table
-    - Hash Map
-    - Hash Set
-
-5. <b>Advanced and Specialized Structures:</b>
-    - Fibonacci Heap
-    - Van Emde Boas Tree
-    - Splay Tree
-    - Treap
-    - Suffix Array
-    - Cartesian Tree
-    - Interval Tree
-    - Persistent Data Structures -->

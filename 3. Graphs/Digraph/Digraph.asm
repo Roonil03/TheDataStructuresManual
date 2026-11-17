@@ -3,7 +3,6 @@ section .data
     fmt_edge:    db "  %d -> %d (w=%d)", 10, 0
     fmt_has:     db "Edge %d->%d exists: %d", 10, 0
     fmt_outdeg:  db "Out-degree of %d: %d", 10, 0
-    fmt_pass:    db "All tests passed.", 10, 0
 
 DIGRAPH_V      equ 0
 DIGRAPH_E      equ 4
@@ -28,24 +27,39 @@ digraph_create:
     push r13
     sub rsp, 8
 
+    test edi, edi
+    js .invalid
+    test esi, esi
+    js .invalid
     mov r12d, edi
     mov r13d, esi
 
     mov edi, DIGRAPH_SIZE
     call malloc
+    test rax, rax
+    jz .done
     mov rbx, rax
 
     mov dword [rbx + DIGRAPH_V], r12d
     mov dword [rbx + DIGRAPH_E], 0
     mov dword [rbx + DIGRAPH_CAP], r13d
 
-    mov eax, r13d
-    imul eax, EDGE_SIZE
-    movsxd rdi, eax
+    imul rdi, r13, EDGE_SIZE
     call malloc
+    test rax, rax
+    jnz .storage_ready
+    test r13d, r13d
+    jz .storage_ready
+    mov rdi, rbx
+    call free
+.invalid:
+    xor eax, eax
+    jmp .done
+.storage_ready:
     mov [rbx + DIGRAPH_EDGES], rax
 
     mov rax, rbx
+.done:
     add rsp, 8
     pop r13
     pop r12
@@ -63,6 +77,10 @@ digraph_add_edge:
     push r15
     sub rsp, 8
 
+    cmp esi, [rdi + DIGRAPH_V]
+    jae .done
+    cmp edx, [rdi + DIGRAPH_V]
+    jae .done
     mov rbx, rdi
     mov r12d, esi
     mov r13d, edx
@@ -78,19 +96,22 @@ digraph_add_edge:
     mov eax, 1
     jmp .cap_done
 .cap_not_zero:
+    cmp eax, 0x3fffffff
+    ja .done
     shl eax, 1
 .cap_done:
-    mov [rbx + DIGRAPH_CAP], eax
-    imul eax, EDGE_SIZE
-    movsxd rsi, eax
+    mov r15d, eax
+    imul rsi, r15, EDGE_SIZE
     mov rdi, [rbx + DIGRAPH_EDGES]
     call realloc
+    test rax, rax
+    jz .done
+    mov [rbx + DIGRAPH_CAP], r15d
     mov [rbx + DIGRAPH_EDGES], rax
 
 .add_no_grow:
     mov eax, [rbx + DIGRAPH_E]
-    imul eax, EDGE_SIZE
-    movsxd rcx, eax
+    imul rcx, rax, EDGE_SIZE
     mov rdi, [rbx + DIGRAPH_EDGES]
     add rdi, rcx
 
@@ -99,6 +120,7 @@ digraph_add_edge:
     mov dword [rdi + EDGE_WEIGHT], r14d
     inc dword [rbx + DIGRAPH_E]
 
+.done:
     add rsp, 8
     pop r15
     pop r14
@@ -121,8 +143,7 @@ digraph_has_edge:
     jge .has_not_found
 
     mov r9d, eax
-    imul r9d, EDGE_SIZE
-    movsxd r9, r9d
+    imul r9, EDGE_SIZE
 
     cmp dword [rcx + r9 + EDGE_SRC], esi
     jne .has_next
@@ -156,8 +177,7 @@ digraph_out_degree:
     jge .outdeg_done
 
     mov r10d, r9d
-    imul r10d, EDGE_SIZE
-    movsxd r10, r10d
+    imul r10, EDGE_SIZE
 
     cmp dword [rcx + r10 + EDGE_SRC], esi
     jne .outdeg_next
@@ -175,6 +195,7 @@ digraph_free:
     push rbp
     mov rbp, rsp
     push rbx
+    sub rsp, 8
 
     mov rbx, rdi
     mov rdi, [rbx + DIGRAPH_EDGES]
@@ -182,6 +203,7 @@ digraph_free:
     mov rdi, rbx
     call free
 
+    add rsp, 8
     pop rbx
     pop rbp
     ret
@@ -209,23 +231,16 @@ digraph_print:
     jge .print_done
 
     mov eax, r12d
-    imul eax, EDGE_SIZE
-    movsxd rcx, eax
+    imul rcx, rax, EDGE_SIZE
     mov rdi, [rbx + DIGRAPH_EDGES]
     add rdi, rcx
 
-    push rdi
+    mov ecx, [rdi + EDGE_WEIGHT]
+    mov edx, [rdi + EDGE_DST]
+    mov esi, [rdi + EDGE_SRC]
     lea rdi, [rel fmt_edge]
-    mov esi, [rsp]
-    mov rsi, [rsp]
-    mov esi, dword [rsi + EDGE_SRC]
-    mov rax, [rsp]
-    mov edx, dword [rax + EDGE_DST]
-    mov rax, [rsp]
-    mov ecx, dword [rax + EDGE_WEIGHT]
     xor eax, eax
     call printf
-    add rsp, 8
 
     inc r12d
     jmp .print_loop
@@ -247,6 +262,8 @@ main:
     mov edi, 6
     mov esi, 4
     call digraph_create
+    test rax, rax
+    jz .failure
     mov rbx, rax
 
     mov rdi, rbx
@@ -319,14 +336,14 @@ main:
     xor eax, eax
     call printf
 
-    lea rdi, [rel fmt_pass]
-    xor eax, eax
-    call printf
-
     mov rdi, rbx
     call digraph_free
 
     xor eax, eax
+    jmp .done
+.failure:
+    mov eax, 1
+.done:
     add rsp, 8
     pop rbx
     pop rbp

@@ -1,7 +1,18 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
+#include <limits.h>
+#include <stdint.h>
 
+static void *checked_alloc(size_t size) {
+    void *p = malloc(size);
+    if (!p) {
+        fputs("Allocation failed\n", stderr);
+        exit(EXIT_FAILURE);
+    }
+    return p;
+}
+
+/* Versions share immutable tails; only push versions own their new top node. */
 typedef struct PNode {
     int value;
     struct PNode *next;
@@ -10,6 +21,7 @@ typedef struct PNode {
 typedef struct {
     PNode *top;
     int size;
+    int owns_top;
 } PStack;
 
 typedef struct {
@@ -19,40 +31,52 @@ typedef struct {
 } PersistentStack;
 
 PersistentStack *pstack_create(void) {
-    PersistentStack *ps = malloc(sizeof(PersistentStack));
+    PersistentStack *ps = checked_alloc(sizeof(PersistentStack));
     ps->cap = 16;
-    ps->versions = malloc(ps->cap * sizeof(PStack));
+    ps->versions = checked_alloc(ps->cap * sizeof(PStack));
     ps->versions[0].top = NULL;
     ps->versions[0].size = 0;
+    ps->versions[0].owns_top = 0;
     ps->num_versions = 1;
     return ps;
 }
 
 static void ensure_capacity(PersistentStack *ps) {
     if (ps->num_versions == ps->cap) {
-        ps->cap *= 2;
-        ps->versions = realloc(ps->versions, ps->cap * sizeof(PStack));
+        if (ps->cap > INT_MAX / 2 || (size_t)ps->cap * 2 > SIZE_MAX / sizeof(PStack)) {
+            fputs("Version capacity exceeded\n", stderr);
+            exit(EXIT_FAILURE);
+        }
+        int new_cap = ps->cap * 2;
+        PStack *versions = realloc(ps->versions, (size_t)new_cap * sizeof(PStack));
+        if (!versions) {
+            fputs("Allocation failed\n", stderr);
+            exit(EXIT_FAILURE);
+        }
+        ps->versions = versions;
+        ps->cap = new_cap;
     }
 }
 
 int pstack_push(PersistentStack *ps, int version, int value) {
-    if (version < 0 || version >= ps->num_versions) return -1;
+    if (!ps || version < 0 || version >= ps->num_versions) return -1;
     ensure_capacity(ps);
 
-    PNode *node = malloc(sizeof(PNode));
+    PNode *node = checked_alloc(sizeof(PNode));
     node->value = value;
     node->next = ps->versions[version].top;
 
     int new_ver = ps->num_versions;
     ps->versions[new_ver].top = node;
     ps->versions[new_ver].size = ps->versions[version].size + 1;
+    ps->versions[new_ver].owns_top = 1;
     ps->num_versions++;
     return new_ver;
 }
 
 int pstack_pop(PersistentStack *ps, int version, int *out_value) {
-    if (version < 0 || version >= ps->num_versions) return -1;
-    if (!ps->versions[version].top) return -1;
+    if (!ps || version < 0 || version >= ps->num_versions) return -1;
+    if (!ps->versions[version].top || !out_value) return -1;
     ensure_capacity(ps);
 
     *out_value = ps->versions[version].top->value;
@@ -60,23 +84,24 @@ int pstack_pop(PersistentStack *ps, int version, int *out_value) {
     int new_ver = ps->num_versions;
     ps->versions[new_ver].top = ps->versions[version].top->next;
     ps->versions[new_ver].size = ps->versions[version].size - 1;
+    ps->versions[new_ver].owns_top = 0;
     ps->num_versions++;
     return new_ver;
 }
 
 int pstack_peek(PersistentStack *ps, int version) {
-    if (version < 0 || version >= ps->num_versions) return -1;
+    if (!ps || version < 0 || version >= ps->num_versions) return -1;
     if (!ps->versions[version].top) return -1;
     return ps->versions[version].top->value;
 }
 
 int pstack_size(PersistentStack *ps, int version) {
-    if (version < 0 || version >= ps->num_versions) return -1;
+    if (!ps || version < 0 || version >= ps->num_versions) return -1;
     return ps->versions[version].size;
 }
 
 void pstack_print_version(PersistentStack *ps, int version) {
-    if (version < 0 || version >= ps->num_versions) return;
+    if (!ps || version < 0 || version >= ps->num_versions) return;
     printf("  v%d (size=%d):", version, ps->versions[version].size);
     for (PNode *n = ps->versions[version].top; n; n = n->next)
         printf(" %d", n->value);
@@ -90,43 +115,9 @@ void pstack_print_all(PersistentStack *ps) {
 }
 
 void pstack_free(PersistentStack *ps) {
-    int *freed = calloc(ps->num_versions * 100, sizeof(int));
-    int freed_count = 0;
-
-    for (int i = 0; i < ps->num_versions; i++) {
-        for (PNode *n = ps->versions[i].top; n; n = n->next) {
-            int already = 0;
-            for (int j = 0; j < freed_count; j++) {
-                if ((PNode *)(long)freed[j] == n) { already = 1; break; }
-            }
-            if (already) break;
-        }
-    }
-
-    PNode **all_nodes = NULL;
-    int node_count = 0, node_cap = 64;
-    all_nodes = malloc(node_cap * sizeof(PNode *));
-
-    for (int i = 0; i < ps->num_versions; i++) {
-        for (PNode *n = ps->versions[i].top; n; n = n->next) {
-            int found = 0;
-            for (int j = 0; j < node_count; j++) {
-                if (all_nodes[j] == n) { found = 1; break; }
-            }
-            if (!found) {
-                if (node_count == node_cap) {
-                    node_cap *= 2;
-                    all_nodes = realloc(all_nodes, node_cap * sizeof(PNode *));
-                }
-                all_nodes[node_count++] = n;
-            }
-        }
-    }
-
-    for (int i = 0; i < node_count; i++)
-        free(all_nodes[i]);
-    free(all_nodes);
-    free(freed);
+    if (!ps) return;
+    for (int i = 0; i < ps->num_versions; i++)
+        if (ps->versions[i].owns_top) free(ps->versions[i].top);
     free(ps->versions);
     free(ps);
 }
@@ -162,6 +153,6 @@ int main(void) {
     pstack_print_all(ps);
 
     pstack_free(ps);
-    printf("All tests passed.\n");
+    printf("Demonstration complete.\n");
     return 0;
 }

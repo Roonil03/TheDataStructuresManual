@@ -1,48 +1,53 @@
-; minheap.asm
+; Array-backed heap insertion and repeated root extraction.
 BITS 64
 default rel
 
 section .note.GNU-stack noalloc noexec nowrite progbits
 
 section .data
-    fmt_d    db "%d", 0
     fmt_out  db "%d ", 0
     fmt_nl   db 10,0
 
 section .bss
     n         resd 1
-    heap      resd 400      ; Larger array
+    heap      resd 400
     heap_size resd 1
 
 section .text
-    extern scanf, printf
+    extern printf
     global main
 
 main:
+    push rbx
+    push r12
+    push r13
+    push r14
+    push r15
+    sub rsp, 8
     push rbp
     mov rbp, rsp
     sub rsp, 32
 
-    ; Read n
-    lea rdi, [fmt_d]
-    lea rsi, [n]
-    xor eax, eax
-    call scanf
+    lea rdi, [n]
+    call tree_read_int
+    cmp eax, 1
+    jne input_error
+    cmp dword [n], 0
+    jl input_error
+    cmp dword [n], 400
+    jg input_error
 
-    ; Initialize heap_size = 0
     mov dword [heap_size], 0
 
-    ; Read and insert each element
-    xor r12, r12              ; i = 0
+    xor r12, r12
 .read_loop:
     cmp r12d, [n]
     jge .extract_phase
 
-    ; Read value
-    lea rdi, [fmt_d]
-    lea rsi, [rbp-4]
-    xor eax, eax
-    call scanf
+    lea rdi, [rbp-4]
+    call tree_read_int
+    cmp eax, 1
+    jne input_error
 
     mov eax, [rbp-4]
     call insert_heap
@@ -51,15 +56,14 @@ main:
     jmp .read_loop
 
 .extract_phase:
-    ; Extract and print all elements
-    xor r12, r12              ; count = 0
+
+    xor r12, r12
 .print_loop:
     cmp r12d, [n]
     jge .done
 
     call extract_min
-    
-    ; Print the extracted value
+
     lea rdi, [fmt_out]
     mov esi, eax
     xor eax, eax
@@ -72,43 +76,53 @@ main:
     lea rdi, [fmt_nl]
     xor eax, eax
     call printf
-    
+
     xor eax, eax
     leave
+    add rsp, 8
+    pop r15
+    pop r14
+    pop r13
+    pop r12
+    pop rbx
     ret
 
-; Insert value into heap
-; EAX = value to insert
+input_error:
+    mov eax, 1
+    leave
+    add rsp, 8
+    pop r15
+    pop r14
+    pop r13
+    pop r12
+    pop rbx
+    ret
+
 insert_heap:
     push rbp
     mov rbp, rsp
     push rbx
     push rcx
     push rdx
-    
-    ; Place at end of heap
+
     mov ebx, [heap_size]
     mov [heap + 4*rbx], eax
     inc dword [heap_size]
-    
-    ; Bubble up
-    mov ecx, ebx              ; current position
+
+    mov ecx, ebx
 .bubble_up:
     test ecx, ecx
     jz .insert_done
-    
-    ; Calculate parent = (i-1)/2
+
     mov edx, ecx
     dec edx
     shr edx, 1
-    
-    ; Compare current with parent
+
     mov eax, [heap + 4*rcx]
     mov ebx, [heap + 4*rdx]
     cmp eax, ebx
     jge .insert_done
-    
-    ; Swap with parent
+
     mov [heap + 4*rcx], ebx
     mov [heap + 4*rdx], eax
     mov ecx, edx
@@ -121,8 +135,6 @@ insert_heap:
     pop rbp
     ret
 
-; Extract minimum value from heap
-; Returns: EAX = minimum value
 extract_min:
     push rbp
     mov rbp, rsp
@@ -131,55 +143,47 @@ extract_min:
     push rdx
     push r8
     push r9
-    
-    ; Get minimum (root)
+
     mov eax, [heap]
-    
-    ; Move last element to root
+
     mov ebx, [heap_size]
     dec ebx
     mov ecx, [heap + 4*rbx]
     mov [heap], ecx
     dec dword [heap_size]
-    
-    ; If heap is now empty, we're done
+
     cmp dword [heap_size], 0
     je .extract_done
-    
-    ; Bubble down from root
-    xor ecx, ecx              ; current = 0
+
+    xor ecx, ecx
 .bubble_down:
-    ; Left child = 2*i + 1
+
     mov edx, ecx
     shl edx, 1
     inc edx
-    
-    ; Check if left child exists
+
     cmp edx, [heap_size]
     jge .extract_done
-    
-    ; Find smallest child
-    mov r8d, edx              ; smallest_idx = left
-    mov r9d, [heap + 4*rdx]   ; smallest_val = heap[left]
-    
-    ; Check right child = 2*i + 2
+
+    mov r8d, edx
+    mov r9d, [heap + 4*rdx]
+
     inc edx
     cmp edx, [heap_size]
     jge .compare_parent
-    
-    mov ebx, [heap + 4*rdx]   ; right_val
+
+    mov ebx, [heap + 4*rdx]
     cmp ebx, r9d
     jge .compare_parent
-    mov r8d, edx              ; smallest_idx = right
-    mov r9d, ebx              ; smallest_val = right_val
+    mov r8d, edx
+    mov r9d, ebx
 
 .compare_parent:
-    ; Compare parent with smallest child
-    mov ebx, [heap + 4*rcx]   ; parent_val
+
+    mov ebx, [heap + 4*rcx]
     cmp ebx, r9d
     jle .extract_done
-    
-    ; Swap parent with smallest child
+
     mov [heap + 4*rcx], r9d
     mov [heap + 4*r8], ebx
     mov ecx, r8d
@@ -193,3 +197,18 @@ extract_min:
     pop rbx
     pop rbp
     ret
+
+; Resolve the shared parser relative to this source, independent of the build directory.
+%strlen tree_input_pos __?FILE?__
+%assign tree_input_length tree_input_pos
+%define tree_input_dir ""
+%rep tree_input_length
+    %substr tree_input_char __?FILE?__ tree_input_pos
+    %ifidn tree_input_char, "/"
+        %substr tree_input_dir __?FILE?__ 1, tree_input_pos
+        %exitrep
+    %endif
+    %assign tree_input_pos tree_input_pos - 1
+%endrep
+%strcat tree_input_path tree_input_dir, "../nasm_input.inc"
+%include tree_input_path

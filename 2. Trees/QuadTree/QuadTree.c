@@ -1,5 +1,8 @@
+#include "../../common/input.h"
+/* Point-quadtree insertion with exhaustive nearest search. */
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdint.h>
 #include <limits.h>
 
 #define MAXN 200
@@ -13,6 +16,7 @@ Node pool[MAXN];
 int pc;
 
 Node* new_node(int x, int y) {
+    if (pc >= MAXN) exit(EXIT_FAILURE);
     Node* n = &pool[pc++];
     n->x = x; n->y = y;
     n->nw = n->ne = n->sw = n->se = NULL;
@@ -37,11 +41,28 @@ void print_tree(Node* t) {
     print_tree(t->se);
 }
 
-int best_dist, bx, by;
+typedef struct {
+    uint64_t low;
+    unsigned carry;
+} Distance;
+
+Distance best_dist;
+int bx, by;
+
+Distance squared_distance(int x, int y, int qx, int qy) {
+    int64_t dx = (int64_t)x - qx, dy = (int64_t)y - qy;
+    uint64_t ax = (uint64_t)(dx < 0 ? -dx : dx);
+    uint64_t ay = (uint64_t)(dy < 0 ? -dy : dy);
+    uint64_t xx = ax * ax, yy = ay * ay;
+    Distance result = {xx + yy, xx + yy < xx};
+    return result;
+}
+
 void nearest(Node* t, int qx, int qy) {
     if (!t) return;
-    int dx = t->x - qx, dy = t->y - qy, d = dx*dx + dy*dy;
-    if (d < best_dist) { best_dist = d; bx = t->x; by = t->y; }
+    Distance d = squared_distance(t->x, t->y, qx, qy);
+    if (d.carry < best_dist.carry ||
+        (d.carry == best_dist.carry && d.low < best_dist.low)) { best_dist = d; bx = t->x; by = t->y; }
     nearest(t->nw, qx, qy);
     nearest(t->ne, qx, qy);
     nearest(t->sw, qx, qy);
@@ -50,17 +71,17 @@ void nearest(Node* t, int qx, int qy) {
 
 int main(void) {
     int n, x, y, qx, qy;
-    if (scanf("%d", &n) != 1) return 1;
+    if (!readInteger(&n) || n < 1 || n > MAXN) return EXIT_FAILURE;
     Node* root = NULL;
     for (int i = 0; i < n; i++) {
-        scanf("%d%d", &x, &y);
+        if (!readInteger(&x) || !readInteger(&y)) return EXIT_FAILURE;
         root = insert(root, x, y);
     }
     printf("Points: ");
     print_tree(root);
     printf("\n");
-    scanf("%d%d", &qx, &qy);
-    best_dist = INT_MAX;
+    if (!readInteger(&qx) || !readInteger(&qy)) return EXIT_FAILURE;
+    best_dist = (Distance){UINT64_MAX, 2};
     nearest(root, qx, qy);
     printf("Nearest to (%d,%d): (%d,%d)\n", qx, qy, bx, by);
     return 0;

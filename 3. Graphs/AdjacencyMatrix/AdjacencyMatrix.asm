@@ -4,7 +4,6 @@ section .data
     fmt_nl:      db 10, 0
     fmt_has:     db "Edge %d->%d exists: %d", 10, 0
     fmt_weight:  db "Weight %d->%d: %d", 10, 0
-    fmt_pass:    db "All tests passed.", 10, 0
 
 ADJM_V       equ 0
 ADJM_MATRIX  equ 8
@@ -21,65 +20,90 @@ adjmatrix_create:
     push r12
     sub rsp, 16
 
+    test edi, edi
+    js .invalid
     mov r12d, edi
 
     mov edi, ADJM_SIZE
     call malloc
+    test rax, rax
+    jz .done
     mov rbx, rax
 
     mov dword [rbx + ADJM_V], r12d
 
-    mov eax, r12d
-    imul eax, r12d
-    movsxd rdi, eax
+    mov edi, r12d
+    imul rdi, rdi
     mov esi, 4
     call calloc
+    test rax, rax
+    jnz .storage_ready
+    test r12d, r12d
+    jz .storage_ready
+    mov rdi, rbx
+    call free
+.invalid:
+    xor eax, eax
+    jmp .done
+.storage_ready:
     mov [rbx + ADJM_MATRIX], rax
 
     mov rax, rbx
+.done:
     add rsp, 16
     pop r12
     pop rbx
     pop rbp
     ret
 
+adjmatrix_cell:
+    cmp esi, [rdi + ADJM_V]
+    jae .invalid
+    cmp edx, [rdi + ADJM_V]
+    jae .invalid
+    mov eax, [rdi + ADJM_V]
+    mov esi, esi
+    imul rax, rsi
+    mov edx, edx
+    add rax, rdx
+    mov rdx, [rdi + ADJM_MATRIX]
+    lea rax, [rdx + rax*4]
+    ret
+.invalid:
+    xor eax, eax
+    ret
+
 adjmatrix_add_edge:
-    mov r8d, [rdi + ADJM_V]
-    mov rax, [rdi + ADJM_MATRIX]
-    imul esi, r8d
-    add esi, edx
-    movsxd r9, esi
-    mov dword [rax + r9*4], ecx
-    ret
-
-adjmatrix_has_edge:
-    mov r8d, [rdi + ADJM_V]
-    mov rax, [rdi + ADJM_MATRIX]
-    imul esi, r8d
-    add esi, edx
-    movsxd r9, esi
-    xor ecx, ecx
-    cmp dword [rax + r9*4], 0
-    setne cl
-    mov eax, ecx
-    ret
-
-adjmatrix_get_weight:
-    mov r8d, [rdi + ADJM_V]
-    mov rcx, [rdi + ADJM_MATRIX]
-    imul esi, r8d
-    add esi, edx
-    movsxd r9, esi
-    mov eax, [rcx + r9*4]
+    sub rsp, 8
+    call adjmatrix_cell
+    add rsp, 8
+    test rax, rax
+    jz .done
+    mov [rax], ecx
+.done:
     ret
 
 adjmatrix_remove_edge:
-    mov r8d, [rdi + ADJM_V]
-    mov rax, [rdi + ADJM_MATRIX]
-    imul esi, r8d
-    add esi, edx
-    movsxd r9, esi
-    mov dword [rax + r9*4], 0
+    xor ecx, ecx
+    jmp adjmatrix_add_edge
+
+adjmatrix_has_edge:
+    sub rsp, 8
+    call adjmatrix_get_weight
+    add rsp, 8
+    test eax, eax
+    setnz al
+    movzx eax, al
+    ret
+
+adjmatrix_get_weight:
+    sub rsp, 8
+    call adjmatrix_cell
+    add rsp, 8
+    test rax, rax
+    jz .done
+    mov eax, [rax]
+.done:
     ret
 
 adjmatrix_print:
@@ -112,10 +136,9 @@ adjmatrix_print:
     jge .row_end
 
     mov eax, r12d
-    imul eax, r15d
-    add eax, r13d
-    movsxd rcx, eax
-    mov esi, [r14 + rcx*4]
+    imul rax, r15
+    add rax, r13
+    mov esi, [r14 + rax*4]
     lea rdi, [rel fmt_val]
     xor eax, eax
     call printf
@@ -165,6 +188,8 @@ main:
 
     mov edi, 5
     call adjmatrix_create
+    test rax, rax
+    jz .failure
     mov rbx, rax
 
     mov rdi, rbx
@@ -264,11 +289,11 @@ main:
     mov rdi, rbx
     call adjmatrix_free
 
-    lea rdi, [rel fmt_pass]
     xor eax, eax
-    call printf
-
-    xor eax, eax
+    jmp .done
+.failure:
+    mov eax, 1
+.done:
     add rsp, 8
     pop rbx
     pop rbp

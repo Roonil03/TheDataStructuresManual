@@ -1,5 +1,21 @@
 # R-Tree Data Structure
 
+## Included programs
+
+`rTree.c` offers insertion, inclusive-overlap range search, display, and exit. Rectangles require finite coordinates with `xmin <= xmax` and `ymin <= ymax`; zero-area rectangles and boundary intersections are accepted. Nodes hold at most four entries, with at least two in each non-root node. Insertion chooses a child by area enlargement, refreshes covering rectangles, and propagates splits through the root. Splits use quadratic seed selection and greedy assignment subject to minimum occupancy. Deletion and updates below are not implemented.
+
+Menu choices and IDs use complete signed 32-bit decimal tokens. Coordinate tokens are at most 127 bytes, must convert completely to a finite `double`, and must not overflow or underflow. Malformed, out-of-range, overlong, or embedded-NUL input ends the session after releasing the tree; a token is never split into multiple fields.
+
+`rTree.asm` is a fixed four-point, single-leaf range-search demonstration. It inserts `(1,1)` through `(4,4)` and prints matches for `[2,2]`–`[3,3]`. It has no input, splitting, general rectangle insertion, or dynamic R-tree construction.
+
+Build from this directory (outputs stay in `/tmp`):
+
+```sh
+gcc -std=c11 -Wall -Wextra "rTree.c" -o /tmp/rtrees
+nasm -f elf64 "rTree.asm" -o /tmp/tree.o
+gcc -no-pie /tmp/tree.o -o /tmp/tree-asm
+```
+
 ## Introduction
 
 **R-Tree** is a tree data structure designed for indexing multi-dimensional spatial data efficiently. Proposed by Antonin Guttman in 1984, it serves as a spatial access method that organizes geometric objects using their **Minimum Bounding Rectangles (MBRs)**.
@@ -62,10 +78,10 @@ typedef struct {
 ### 1. **Balanced Structure**
 - All leaf nodes are at the same depth
 - Similar to B-trees, maintains logarithmic height
-- Guarantees consistent performance across all operations
+- Logarithmic height bounds one insertion path; overlapping MBRs can make a range search visit the entire tree
 
 ### 2. **Node Capacity Constraints**
-- **Maximum entries (M)**: Typically 4-50 entries per node
+- **Maximum entries (M)**: Four entries per node in the C implementation
 - **Minimum entries (m)**: Usually M/2, ensures efficient space utilization
 - **Root exception**: Root can have fewer than m entries
 
@@ -90,14 +106,14 @@ Search(Node, QueryRect):
     if Node is leaf:
         for each entry in Node:
             if entry.MBR overlaps QueryRect:
-                return entry.data
+                emit entry.data
     else:
         for each child in Node:
             if child.MBR overlaps QueryRect:
                 Search(child, QueryRect)
 ```
 
-**Time Complexity**: O(log n) average, O(n) worst case
+**Time Complexity**: O(n) in the worst case. Overlapping bounds may require visiting every entry even when the query returns few matches; producing k matches also costs at least O(k).
 
 ### 2. **Insertion Algorithm**
 
@@ -114,19 +130,34 @@ ChooseLeaf(Node, NewRect):
 
 #### Step 2: Insert and Split (if necessary)
 ```
-Insert(Tree, Rect, DataID):
-    leaf = ChooseLeaf(Tree.root, Rect)
-    if leaf has space:
-        add Rect to leaf
+InsertRecursive(Node, Rect, DataID):
+    if Node is leaf:
+        pending_entry = (Rect, DataID)
     else:
-        split leaf using quadratic split algorithm
-        propagate split up the tree if necessary
+        child = entry requiring least MBR enlargement (break ties by area)
+        sibling = InsertRecursive(child.node, Rect, DataID)
+        child.MBR = bounds(child.node)  // Refresh even when no split occurs
+        if sibling is absent:
+            return no split
+        pending_entry = (bounds(sibling), sibling)
+
+    if Node has space:
+        append pending_entry
+        return no split
+    else:
+        redistribute all M + 1 entries into Node and a new sibling
+        return new sibling
+
+Insert(Tree, Rect, DataID):
+    sibling = InsertRecursive(Tree.root, Rect, DataID)
+    if sibling is present:
+        Tree.root = new internal node covering the old root and sibling
 ```
 
 #### Quadratic Split Algorithm
 1. **Find Seeds**: Select two entries that waste the most area when grouped
 2. **Initialize Groups**: Place seeds in separate groups
-3. **Distribute Remaining**: Assign each remaining entry to the group requiring less enlargement
+3. **Distribute Remaining**: Assign each remaining entry to the group requiring less enlargement, while ensuring each group can still reach the minimum occupancy `m`; leaf entries retain IDs and internal entries retain child pointers
 
 ### 3. **MBR Calculation**
 
@@ -143,9 +174,9 @@ CalculateMBR(Rectangles[]):
 
 ```
 Overlaps(Rect1, Rect2):
-    return !(Rect1.xmax < Rect2.xmin || 
+    return !(Rect1.xmax < Rect2.xmin ||
              Rect2.xmax < Rect1.xmin ||
-             Rect1.ymax < Rect2.ymin || 
+             Rect1.ymax < Rect2.ymin ||
              Rect2.ymax < Rect1.ymin)
 ```
 
@@ -177,7 +208,7 @@ Overlaps(Rect1, Rect2):
 ```
 Example: Find all restaurants within 2km of current location
 Query: Range search with circular or rectangular boundary
-Performance: Logarithmic time vs linear scan of all restaurants
+Performance: Spatial pruning can reduce candidate checks; overlapping bounds may still require a full scan
 ```
 
 ### 2. **Computer-Aided Design (CAD)**
@@ -223,15 +254,15 @@ Scale: Handle millions of moving objects efficiently
 
 | Operation | Average Case | Worst Case | Best Case |
 |-----------|--------------|------------|-----------|
-| Search    | O(log n)     | O(n)       | O(log n)  |
-| Insert    | O(log n)     | O(n)       | O(log n)  |
-| Delete    | O(log n)     | O(n)       | O(log n)  |
+| Range search | Depends on overlap and output | O(n) | O(1) if rejected at root |
+| Insert    | O(log n), fixed M | O(log n), fixed M | O(1) in root leaf |
+| Delete    | Not implemented | Not implemented | Not implemented |
 | Split     | O(M²)        | O(M²)      | O(M²)     |
 
 ### Space Complexity
 - **Storage**: O(n) where n = number of spatial objects
 - **Node overhead**: Constant per node (MBR storage)
-- **Fill factor**: 30-40% optimal (vs 50% for B-trees)
+- **Minimum occupancy**: Two of four entries per non-root node in this implementation
 
 ### Performance Factors
 
@@ -256,7 +287,7 @@ Improvements:
 - Better split criteria (minimize overlap + area)
 - Enhanced ChooseSubtree algorithm
 
-Performance: 20-50% better query performance than basic R-tree
+Performance: Depends on data distribution, node capacity, and query workload
 ```
 
 ### 2. **R+-Tree (R-Plus Tree)**
@@ -291,67 +322,40 @@ Application: Location tracking, mobile databases
 
 ## Code Example
 
-### Basic R-Tree Operations in C
+### API Provided by `rTree.c`
+
+The implementation exposes these operations (with the types declared earlier):
 
 ```c
-// Insert a rectangle into the R-tree
-void insert_rectangle(RTree *tree, Rectangle rect, int data_id) {
-    RTreeNode *leaf = choose_leaf(tree->root, rect);
-    
-    if (leaf->count < M) {
-        // Direct insertion
-        leaf->mbr[leaf->count] = rect;
-        leaf->data_id[leaf->count] = data_id;
-        leaf->count++;
-    } else {
-        // Node is full, split required
-        RTreeNode *new_node = create_node(true);
-        quadratic_split(leaf, new_node, rect, data_id);
-        adjust_tree(tree, leaf, new_node);
-    }
-}
-
-// Range search query
-void range_search(RTreeNode *node, Rectangle query) {
-    if (node->is_leaf) {
-        for (int i = 0; i < node->count; i++) {
-            if (rectangles_overlap(node->mbr[i], query)) {
-                printf("Found object: ID=%d\n", node->data_id[i]);
-            }
-        }
-    } else {
-        for (int i = 0; i < node->count; i++) {
-            if (rectangles_overlap(node->mbr[i], query)) {
-                range_search(node->child[i], query);
-            }
-        }
-    }
-}
-
-// Calculate MBR enlargement cost
-double calculate_enlargement(Rectangle existing, Rectangle new_rect) {
-    Rectangle union_rect = union_rectangles(existing, new_rect);
-    return rectangle_area(union_rect) - rectangle_area(existing);
-}
+RTree *create_rtree(void);
+void insert_rect(RTree *tree, Rectangle rect, int data_id);
+void search_range(RTreeNode *node, Rectangle query, int depth);
+void display_tree(RTreeNode *node, int depth);
+void free_rtree(RTreeNode *node);
 ```
+
+`insert_rect` validates rectangle coordinates, calls `insert_rect_recursive`, and creates a new root when necessary. During recursion, each parent's covering MBR is refreshed after child insertion. A child split contributes its new sibling and MBR to the parent; splitting a full parent propagates the result upward. `quadratic_split` receives a pointer to the new sibling pointer, the pending rectangle, its data ID, and its child pointer (for an internal node). There is no separate `adjust_tree` operation.
+
+`search_range` prints every entry whose rectangle inclusively overlaps the query. `free_rtree` accepts a node pointer and recursively releases that subtree; the owning `RTree` wrapper must be freed separately.
 
 ### Usage Example
 
+This replaces the interactive `main` in `rTree.c`, using its existing types, function definitions, and standard-library includes:
+
 ```c
-int main() {
+int main(void) {
     RTree *tree = create_rtree();
-    
-    // Insert spatial objects
-    insert_rectangle(tree, (Rectangle){0,0,5,5}, 1);
-    insert_rectangle(tree, (Rectangle){3,3,8,8}, 2);
-    insert_rectangle(tree, (Rectangle){6,1,9,4}, 3);
-    
-    // Perform range query
+
+    insert_rect(tree, (Rectangle){0, 0, 5, 5}, 1);
+    insert_rect(tree, (Rectangle){3, 3, 8, 8}, 2);
+    insert_rect(tree, (Rectangle){6, 1, 9, 4}, 3);
+
     Rectangle query = {2, 2, 7, 7};
     printf("Objects overlapping query rectangle:\n");
-    range_search(tree->root, query);
-    
-    free_rtree(tree);
+    search_range(tree->root, query, 0);
+
+    free_rtree(tree->root);
+    free(tree);
     return 0;
 }
 ```
@@ -367,7 +371,7 @@ int main() {
 
 ### Modern Applications
 - **PostGIS**: PostgreSQL spatial extension using R-tree indexing
-- **Oracle Spatial**: Enterprise spatial database with R-tree support  
+- **Oracle Spatial**: Enterprise spatial database with R-tree support
 - **MongoDB**: Geospatial queries using R-tree-like structures
 - **Elasticsearch**: Geographic search with spatial indexing
 
@@ -380,11 +384,11 @@ int main() {
 
 ## Summary
 
-R-Trees provide an elegant solution for multi-dimensional spatial data indexing, balancing efficiency with simplicity. Their hierarchical structure enables logarithmic search performance while maintaining dynamic update capabilities. The key insight of using MBRs to approximate complex spatial objects makes them practical for real-world applications ranging from GIS to game development.
+R-Trees index spatial objects using hierarchical minimum bounding rectangles. Balanced height gives short insertion paths, while query performance depends on how many bounds overlap the search region. Range searches can visit every entry even when few objects match. The C example implements insertion and range search; deletion and updates are background concepts.
 
 **Key Takeaways:**
 - Efficient spatial indexing through hierarchical MBR organization
-- Logarithmic search performance with dynamic update support  
+- Balanced height, with range-search work determined by overlap and output
 - Wide applicability across spatial computing domains
 - Multiple variants optimized for specific use cases
 - Foundation for modern spatial database systems

@@ -1,6 +1,16 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+static void *checked_alloc(size_t size) {
+    void *p = malloc(size);
+    if (!p) {
+        fputs("Allocation failed\n", stderr);
+        exit(EXIT_FAILURE);
+    }
+    return p;
+}
+
+/* Each subtree caches its largest interval endpoint for overlap pruning. */
 typedef struct ITNode {
     int low, high, max;
     struct ITNode *left, *right;
@@ -11,7 +21,7 @@ typedef struct {
 } IntervalTree;
 
 static ITNode *new_node(int low, int high) {
-    ITNode *n = malloc(sizeof(ITNode));
+    ITNode *n = checked_alloc(sizeof(ITNode));
     n->low = low;
     n->high = high;
     n->max = high;
@@ -28,6 +38,7 @@ static void update_max(ITNode *n) {
 }
 
 ITNode *it_insert(ITNode *root, int low, int high) {
+    if (low > high) return root;
     if (!root) return new_node(low, high);
     if (low < root->low)
         root->left = it_insert(root->left, low, high);
@@ -42,7 +53,7 @@ static int overlaps(int l1, int h1, int l2, int h2) {
 }
 
 ITNode *it_search(ITNode *root, int low, int high) {
-    if (!root) return NULL;
+    if (!root || low > high) return NULL;
     if (overlaps(root->low, root->high, low, high))
         return root;
     if (root->left && root->left->max >= low)
@@ -56,16 +67,19 @@ static void it_search_all_util(ITNode *root, int low, int high, int *results, in
         results[(*count)++] = root->low;
     if (root->left && root->left->max >= low)
         it_search_all_util(root->left, low, high, results, count);
-    it_search_all_util(root->right, low, high, results, count);
+    if (root->low <= high)
+        it_search_all_util(root->right, low, high, results, count);
 }
 
 int it_search_all(ITNode *root, int low, int high, int *results) {
+    if (low > high || !results) return 0;
     int count = 0;
     it_search_all_util(root, low, high, results, &count);
     return count;
 }
 
 ITNode *it_delete(ITNode *root, int low, int high) {
+    if (low > high) return root;
     if (!root) return NULL;
     if (low < root->low) {
         root->left = it_delete(root->left, low, high);
@@ -146,6 +160,6 @@ int main(void) {
     printf("\n");
 
     it_free(tree.root);
-    printf("All tests passed.\n");
+    printf("Demonstration complete.\n");
     return 0;
 }

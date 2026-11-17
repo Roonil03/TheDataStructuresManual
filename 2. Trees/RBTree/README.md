@@ -1,5 +1,21 @@
 # Red-Black Tree
 
+## Included programs
+
+`RBTree.c` reads integers until EOF, retains duplicates, and prints inorder traversal. It implements red-black insertion with a shared black NIL sentinel, parent links, recoloring, and rotations. Search and deletion below are background concepts.
+
+`RBTree.asm` reads integers until EOF, retains duplicates, and prints inorder traversal. It restores red-black invariants after every insertion using parent links, recoloring, and left/right rotations; null child pointers represent black leaves. Both implementations provide O(log n) insertion and free the tree before returning. Search and deletion are not implemented.
+
+On ordinary EOF, both programs print the accepted keys and return status 0. On a malformed or out-of-range integer token, `RBTree.c` writes a diagnostic to stderr, prints the keys accepted before that token, frees the tree, and returns status 0. `RBTree.asm` frees the tree and returns status 1 without printing a traversal.
+
+Build from this directory (outputs stay in `/tmp`):
+
+```sh
+gcc -std=c11 -Wall -Wextra "RBTree.c" -o /tmp/rbtree
+nasm -f elf64 "RBTree.asm" -o /tmp/tree.o
+gcc -no-pie /tmp/tree.o -o /tmp/tree-asm
+```
+
 
 ## What is a Red-Black Tree?
 
@@ -56,7 +72,7 @@ Rotations preserve the in-order traversal property while adjusting tree structur
 | Operation | Time Complexity | Space Complexity |
 |-----------|----------------|------------------|
 | Search    | O(log n)       | O(1)            |
-| Insertion | O(log n)       | O(1)            |
+| Insertion | O(log n)       | O(1) auxiliary  |
 | Deletion  | O(log n)       | O(1)            |
 | Traversal | O(n)           | O(log n)        |
 

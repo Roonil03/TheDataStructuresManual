@@ -1,136 +1,39 @@
-# Van Emde Boas Tree
+# van Emde Boas Tree
 
-## Overview
-
-A **van Emde Boas (vEB) Tree** is a tree-based data structure that maintains a dynamic set of integers drawn from a fixed universe $U = \{0,1,\dots,u-1\}$, where $u$ is a power of two. It supports the following operations in $O(\log\log u)$ time per operation, making it asymptotically faster than binary search trees or heaps for large universes:
-
-- **Insert(x)**: add element $x$
-- **Delete(x)**: remove element $x$
-- **Member(x)**: test if $x$ is in the set
-- **Successor(x)**: smallest element > $x$
-- **Predecessor(x)**: largest element < $x$
-- **Minimum()** / **Maximum()**: return the minimum or maximum element
-
+`vanEmdeBoasTree.c` maintains a set of integers in the fixed universe `[0, u - 1]`, where `u >= 2` is a representable positive power of two. `vEB_create` returns `NULL` for other universe sizes. The example driver uses `u = 16`.
 
 ## Structure
 
-Each vEB node for universe size $u$ stores:
+Each node stores its universe size, minimum/maximum (`-1` when empty), cached lower/upper sizes, a summary, and cluster pointers. The minimum is stored separately from the clusters. For `u = 2^b`, clusters have universe size `lower = 2^floor(b/2)` and their count is `upper = 2^ceil(b/2)`. The summary has universe `upper`. These unequal halves are essential when `b` is odd: for `u = 8`, there are four clusters of size two.
 
-- **min**, **max** (integers, $-1$ if empty)
-- **summary**: a pointer to a vEB tree of size $\sqrt{u}$ tracking which clusters are nonempty
-- **cluster**: an array of $\sqrt{u}$ pointers to vEB trees of size $\sqrt{u}$
+A key is split as `high = x / lower`, `low = x % lower`, and reconstructed as `high * lower + low`. Operations use the cached sizes, avoiding floating-point rounding and repeated square-root/logarithm calculations.
 
-Helper functions for an integer $x$:
+## API
 
-$$
-\mathrm{high}(x) = \left\lfloor \frac{x}{\sqrt{u}} \right\rfloor,\quad
-\mathrm{low}(x) = x \bmod \sqrt{u},\quad
-\mathrm{index}(h,l) = h\cdot\sqrt{u} + l.
-$$
+- `vEB_insert` ignores duplicates and out-of-universe keys.
+- `vEB_delete` ignores absent and out-of-universe keys. Deleting the only present key makes the set empty.
+- `vEB_member` returns false for an empty tree, a null tree, or an out-of-universe key.
+- `vEB_successor` returns the smallest stored key strictly greater than its argument, or `-1` if none exists.
+- `vEB_predecessor` returns the largest stored key strictly smaller than its argument, or `-1` if none exists. Both ordering queries accept any `int`, including values outside the universe.
+- Read `min`/`max` directly for extrema; `vEB_free` recursively releases all allocations and accepts `NULL`.
 
-## Operations
+Insert/delete check membership once before their internal mutation, preserving set semantics without repeated checks at every recursive level.
 
-### Member(x)
-
-```
-if x == V.min or x == V.max: return true
-if V.u == 2: return false
-return Member(V.cluster[high(x)], low(x))
-```
-
-
-### Minimum(), Maximum()
-
-```
-return V.min or V.max
-```
-
-
-### Successor(x)
-
-```
-if V.u == 2:
-    if x == 0 and V.max == 1: return 1
-    else: return -1
-if V.min != -1 and x < V.min: return V.min
-h, l = high(x), low(x)
-if V.cluster[h].max != -1 and l < V.cluster[h].max:
-    offset = Successor(V.cluster[h], l)
-    return index(h, offset)
-succCluster = Successor(V.summary, h)
-if succCluster == -1: return -1
-return index(succCluster, V.cluster[succCluster].min)
-```
-
-
-### Predecessor(x)
-
-```
-if V.u == 2:
-    if x == 1 and V.min == 0: return 0
-    else: return -1
-if V.max != -1 and x > V.max: return V.max
-h, l = high(x), low(x)
-if V.cluster[h].min != -1 and l > V.cluster[h].min:
-    offset = Predecessor(V.cluster[h], l)
-    return index(h, offset)
-predCluster = Predecessor(V.summary, h)
-if predCluster == -1:
-    if V.min != -1 and x > V.min: return V.min
-    else: return -1
-return index(predCluster, V.cluster[predCluster].max)
-```
-
-
-### Insert(x)
-
-```
-if V.min == -1:
-    V.min = V.max = x; return
-if x < V.min: swap(x, V.min)
-if V.u > 2:
-    h, l = high(x), low(x)
-    if V.cluster[h].min == -1:
-        Insert(V.summary, h)
-        V.cluster[h].min = V.cluster[h].max = l
-    else:
-        Insert(V.cluster[h], l)
-if x > V.max: V.max = x
-```
-
-
-### Delete(x)
-
-```
-if V.min == V.max:
-    V.min = V.max = -1; return
-if V.u == 2:
-    if x == 0: V.min = 1 else: V.max = 0; return
-if x == V.min:
-    first = V.summary.min
-    x = index(first, V.cluster[first].min)
-    V.min = x
-h, l = high(x), low(x)
-Delete(V.cluster[h], l)
-if V.cluster[h].min == -1:
-    Delete(V.summary, h)
-if x == V.max:
-    if V.summary.max == -1: V.max = V.min
-    else:
-        smax = V.summary.max
-        V.max = index(smax, V.cluster[smax].max)
-```
-
-
-## Time \& Space Complexity
-
-| Operation | Time Complexity |
+| Operation | Time |
 | :-- | :-- |
-| Member | $O(\log\log u)$ |
-| Insert | $O(\log\log u)$ |
-| Delete | $O(\log\log u)$ |
-| Successor | $O(\log\log u)$ |
-| Predecessor | $O(\log\log u)$ |
-| Minimum/Max | $O(1)$ |
+| Member / insert / delete / successor / predecessor | O(log log u) |
+| Minimum / maximum | O(1) |
+| Construction / destruction | O(u) |
+| Stored space | O(u) |
+| Operation recursion | O(log log u) |
 
-Space usage is $O(u)$ across all clusters and summary nodes.
+All summary/cluster trees are allocated eagerly, so large universes can be impractical despite fast queries. Allocation failure prints an error and terminates. This implementation is useful for studying bounded-integer sets and their order queries; it is not a sparse-universe allocation scheme.
+
+## Run
+
+```sh
+cc -std=c11 -Wall -Wextra -Wpedantic vanEmdeBoasTree.c -o /tmp/veb-tree
+/tmp/veb-tree
+```
+
+Commands are `i <x>` (insert), `d <x>` (delete), `m <x>` (membership), `s <x>` (successor), `r <x>` (predecessor), `p` (print min/max), and `q` (quit), as whitespace-separated tokens. Commands must be single characters; combined tokens such as `i5` and `pp` are invalid. The driver reports `Out of range` for invalid insert keys. Keys/arguments must be complete decimal tokens with an optional sign and must fit in `int`; arbitrarily many leading zeros are accepted. EOF, an invalid/missing integer operand, a command token longer than one byte or containing a NUL byte, or `q` ends the session and frees the tree. Other unrecognized single-character commands are ignored.

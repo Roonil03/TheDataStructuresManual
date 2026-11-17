@@ -1,6 +1,8 @@
 # Adjacency List
 
-An array of linked lists where each index represents a vertex and the linked list at that index contains all vertices reachable via outgoing edges.
+An array of linked lists where each index represents a vertex and the linked list at that index contains the immediate destinations of its outgoing edges.
+
+Both examples support directed, weighted edges, including parallel edges and self-loops. The C version also provides removal, BFS and DFS. Removing an edge removes the first matching destination in the source chain.
 
 ## Memory Mechanics
 

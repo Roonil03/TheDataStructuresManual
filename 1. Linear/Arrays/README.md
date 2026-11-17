@@ -6,3 +6,6 @@ Arrays store their elements in contiguous memory locations. This means that the 
 
 Accessing elements in an array is efficient due to its contiguous memory storage. The index of the element is used to calculate its memory address, allowing direct access in constant time, O(1).
 
+### Examples in this directory
+
+`array.c` reads and displays five signed C `int` values. `array.asm` stores and displays five digits from 0 through 9 in consecutive bytes. The assembly example targets Linux x86-64 and uses NASM with Linux system calls. Both examples accept whitespace-separated input and stop on missing or malformed values.

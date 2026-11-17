@@ -1,3 +1,5 @@
+#include "../../common/input.h"
+/* AVL insertion with stored subtree heights and rotations. */
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -22,6 +24,7 @@ int getBalance(struct Node* node) {
 
 struct Node* createNode(int key) {
     struct Node* node = (struct Node*)malloc(sizeof(struct Node));
+    if (!node) exit(EXIT_FAILURE);
     node->key = key;
     node->height = 1;
     node->left = NULL;
@@ -31,52 +34,52 @@ struct Node* createNode(int key) {
 
 struct Node* rightRotate(struct Node* y) {
     struct Node* x = y->left;
-    struct Node* T2 = x->right;    
+    struct Node* T2 = x->right;
     x->right = y;
-    y->left = T2;    
+    y->left = T2;
     y->height = 1 + max(height(y->left), height(y->right));
     x->height = 1 + max(height(x->left), height(x->right));
-    
+
     return x;
 }
 
 struct Node* leftRotate(struct Node* x) {
     struct Node* y = x->right;
-    struct Node* T2 = y->left;    
+    struct Node* T2 = y->left;
     y->left = x;
-    x->right = T2;    
+    x->right = T2;
     x->height = 1 + max(height(x->left), height(x->right));
     y->height = 1 + max(height(y->left), height(y->right));
-    
+
     return y;
 }
 
 struct Node* insert(struct Node* node, int key) {
     if (node == NULL)
         return createNode(key);
-    
+
     if (key < node->key)
         node->left = insert(node->left, key);
     else if (key > node->key)
         node->right = insert(node->right, key);
     else
         return node;
-    
+
     node->height = 1 + max(height(node->left), height(node->right));
 
-    int balance = getBalance(node);    
+    int balance = getBalance(node);
     if (balance > 1 && key < node->left->key)
-        return rightRotate(node);    
+        return rightRotate(node);
     if (balance < -1 && key > node->right->key)
-        return leftRotate(node);    
+        return leftRotate(node);
     if (balance > 1 && key > node->left->key) {
         node->left = leftRotate(node->left);
         return rightRotate(node);
-    }    
+    }
     if (balance < -1 && key < node->right->key) {
         node->right = rightRotate(node->right);
         return leftRotate(node);
-    }    
+    }
     return node;
 }
 
@@ -88,13 +91,21 @@ void inorder(struct Node* root) {
     }
 }
 
+void free_tree(struct Node *node) {
+    if (node == NULL) return;
+    free_tree(node->left);
+    free_tree(node->right);
+    free(node);
+}
+
 int main() {
     struct Node* root = NULL;
-    int key;    
-    while (scanf("%d", &key) == 1) {
+    int key;
+    while (readInteger(&key)) {
         root = insert(root, key);
-    }    
+    }
     inorder(root);
-    printf("\n");    
+    printf("\n");
+    free_tree(root);
     return 0;
 }

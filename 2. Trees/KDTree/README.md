@@ -1,12 +1,24 @@
 # K‐D Trees
 
+## Included programs
+
+The examples read `n` (1–100), `n` integer `(x, y)` points, and a query point. They insert in input order while alternating split axes, print inorder traversal, then find a nearest point by visiting every node. Squared-distance comparisons are exact across the full signed 32-bit coordinate range. Equal-distance ties retain the first point encountered by the nearest traversal. This implementation is not median-balanced and does not prune branches: nearest search is O(n), and worst-case insertion is O(n) per point. Deletion/range search and balanced construction below are background concepts.
+
+Build from this directory (outputs stay in `/tmp`):
+
+```sh
+gcc -std=c11 -Wall -Wextra "KDTree.c" -o /tmp/kdtree
+nasm -f elf64 "KDTree.asm" -o /tmp/tree.o
+gcc -no-pie /tmp/tree.o -o /tmp/tree-asm
+```
+
 ## Overview
 
 A **K‐Dimensional Tree (KD‐Tree)** is a space‐partitioning binary tree data structure used for organizing points in k‐dimensional space. Each non‐leaf node acts as a hyperplane that divides the space into two half‐spaces, with points to the left and right of this hyperplane represented by the left and right subtrees respectively. The tree alternates splitting dimensions at each level, making it highly efficient for spatial queries such as nearest neighbor search and range queries.
 
 ## Key Properties
 
-- **Binary Tree Structure**: Each node represents a k‐dimensional point, with every non‐leaf node having exactly two children.
+- **Binary Tree Structure**: Each node represents a k‐dimensional point, with up to two children per node.
 - **Alternating Dimensions**: The splitting dimension cycles through all valid dimensions using the formula: *dimension = depth mod k*.
 - **Space Partitioning**: Each internal node defines a hyperplane that divides the k‐dimensional space into two half‐spaces.
 - **Balanced Construction**: When built optimally using median‐finding algorithms, the tree maintains logarithmic height for efficient operations.
@@ -25,7 +37,7 @@ A **K‐Dimensional Tree (KD‐Tree)** is a space‐partitioning binary tree dat
    8. *node.right* ← recursively build tree(*points* after *median*, *depth* + 1).
    9. Return *node*.
    
-   Time complexity: *O*(*n* log *n*) using efficient median‐finding algorithms.
+   A linear-time median selection and partition at each level gives O(n log n) construction. Sorting each subtree independently takes O(n log² n).
 
 2. **Nearest Neighbor Search**
    **Procedure**
@@ -58,7 +70,7 @@ A **K‐Dimensional Tree (KD‐Tree)** is a space‐partitioning binary tree dat
       ```
    3. Return collected points.
    
-   Time complexity: *O*(*n*^(1−1/*k*) + *m*) where *m* is the number of reported points.
+   For a balanced tree with cyclic splits in fixed dimension k ≥ 2, an orthogonal range query takes O(n^(1−1/k) + m), where m is the number of reported points.
 
 4. **Insertion**
    **Procedure**

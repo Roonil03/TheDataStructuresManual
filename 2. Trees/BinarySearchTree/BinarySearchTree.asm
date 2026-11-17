@@ -1,12 +1,13 @@
-;BinarySearch Tree
+; Recursive binary search tree insertion and inorder traversal.
+extern exit, free
+
 BITS 64
 default rel
-extern malloc, scanf, printf
+extern malloc, printf
 
 section .note.GNU-stack noalloc noexec nowrite progbits
 
 section .data
-    scan_fmt db "%d", 0
     out_fmt  db "%d ", 0
     nl       db 10, 0
 
@@ -23,32 +24,43 @@ section .text
     global main
 
 main:
+    push rbx
+    push r12
+    push r13
+    push r14
+    push r15
+    sub rsp, 8
     push rbp
     mov rbp, rsp
     sub rsp, 16
     xor r12, r12
+    mov dword [rbp-8], 0
 
 .input_loop:
-    lea rdi, [scan_fmt]
-    lea rsi, [temp]
-    xor eax, eax
-    call scanf
+    lea rdi, [temp]
+    call tree_read_int
+    cmp eax, -1
+    je .show_tree
     cmp eax, 1
-    jne .show_tree
-    
+    jne .invalid_input
+
     mov esi, [temp]
     test r12, r12
     jz .new_root
-    
+
     mov rdi, r12
     call insert
     jmp .input_loop
 
 .new_root:
-    push rsi
+    sub rsp, 16
+    mov [rsp], esi
     mov edi, Node_size
     call malloc
-    pop rsi
+    test rax, rax
+    jz allocation_error
+    mov esi, [rsp]
+    add rsp, 16
     mov qword [rax+Node.left], 0
     mov qword [rax+Node.right], 0
     mov dword [rax+Node.val], esi
@@ -61,10 +73,21 @@ main:
     lea rdi, [nl]
     xor eax, eax
     call printf
-    xor eax, eax
+    jmp .cleanup
+.invalid_input:
+    mov dword [rbp-8], 1
+.cleanup:
+    mov rdi, r12
+    call free_tree
+    mov eax, [rbp-8]
     leave
+    add rsp, 8
+    pop r15
+    pop r14
+    pop r13
+    pop r12
+    pop rbx
     ret
-
 insert:
     push rbp
     mov rbp, rsp
@@ -72,20 +95,23 @@ insert:
     push r12
     push r13
     sub rsp, 8
-    
+
     mov rbx, rdi
     mov r13d, esi
-    
+
     mov eax, [rbx+Node.val]
     cmp r13d, eax
+    je .done
     jg .go_right
-    
+
     mov r12, [rbx+Node.left]
     test r12, r12
     jnz .left_recurse
-    
+
     mov edi, Node_size
     call malloc
+    test rax, rax
+    jz allocation_error
     mov qword [rax+Node.left], 0
     mov qword [rax+Node.right], 0
     mov dword [rax+Node.val], r13d
@@ -102,9 +128,11 @@ insert:
     mov r12, [rbx+Node.right]
     test r12, r12
     jnz .right_recurse
-    
+
     mov edi, Node_size
     call malloc
+    test rax, rax
+    jz allocation_error
     mov qword [rax+Node.left], 0
     mov qword [rax+Node.right], 0
     mov dword [rax+Node.val], r13d
@@ -127,28 +155,65 @@ insert:
 inorder:
     test rdi, rdi
     jz .end
-    
+
     push rbp
     mov rbp, rsp
     push rbx
     sub rsp, 8
-    
+
     mov rbx, rdi
-    
+
     mov rdi, [rbx+Node.left]
     call inorder
-    
+
     lea rdi, [out_fmt]
     mov esi, [rbx+Node.val]
     xor eax, eax
     call printf
-    
+
     mov rdi, [rbx+Node.right]
     call inorder
-    
+
     add rsp, 8
     pop rbx
     pop rbp
 
 .end:
     ret
+
+section .text
+allocation_error:
+    mov edi, 1
+    call exit
+    ud2
+
+
+free_tree:
+    test rdi, rdi
+    jz .done
+    push rbx
+    mov rbx, rdi
+    mov rdi, [rbx + Node.left]
+    call free_tree
+    mov rdi, [rbx + Node.right]
+    call free_tree
+    mov rdi, rbx
+    pop rbx
+    jmp free
+.done:
+    ret
+
+; Resolve the shared parser relative to this source, independent of the build directory.
+%strlen tree_input_pos __?FILE?__
+%assign tree_input_length tree_input_pos
+%define tree_input_dir ""
+%rep tree_input_length
+    %substr tree_input_char __?FILE?__ tree_input_pos
+    %ifidn tree_input_char, "/"
+        %substr tree_input_dir __?FILE?__ 1, tree_input_pos
+        %exitrep
+    %endif
+    %assign tree_input_pos tree_input_pos - 1
+%endrep
+%strcat tree_input_path tree_input_dir, "../nasm_input.inc"
+%include tree_input_path

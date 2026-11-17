@@ -1,352 +1,303 @@
-; octree.asm – Working Octree in NASM x86_64
-; Supports insertion, search, and display for a single point
+; Sparse octree over 0..255, using one coordinate bit per level.
+BITS 64
+default rel
 
 section .data
-    menu        db "Octree Operations:",10
-                db "1. Insert point",10
-                db "2. Search point",10
-                db "3. Display point",10
-                db "4. Exit",10
-                db "Enter choice: ",0
-
-    prompt_x    db "Enter X (0-255): ",0
-    prompt_y    db "Enter Y (0-255): ",0
-    prompt_z    db "Enter Z (0-255): ",0
-
-    msg_inserted    db "Inserted",10,0
-    msg_not_found   db "Not Found",10,0
-    msg_found       db "Found: ",0
-    newline         db 10,0
-    space           db 32,0
+menu db "Octree Operations:",10,"1. Insert point",10,"2. Search point",10,"3. Display tree",10,"4. Exit",10,"Enter choice: ",0
+prompt db "Enter X Y Z (0-255): ",0
+inserted db "Point inserted",10,0
+found db "Found",10,0
+missing db "Not Found",10,0
+invalid db "Point is out of bound",10,0
+space db " ",0
+newline db 10,0
 
 section .bss
-    root        resq 1       ; pointer to root node
-    buf         resb 16
-    tx          resd 1
-    ty          resd 1
-    tz          resd 1
+root resq 1
+node_next resq 1
+node_limit resq 1
+coords resd 3
+buf resb 16
 
 section .text
-    global _start
-
+global _start
 _start:
-    mov qword [root], 0
-
-main_loop:
-    mov rsi, menu
+    lea rsi, [menu]
     call print_string
-    call read_digit
-    sub al, '0'
-    cmp al, 1
-    je do_insert
-    cmp al, 2
-    je do_search
-    cmp al, 3
-    je do_display
-    cmp al, 4
+    call read_number
+    jc do_exit
+    cmp eax, 4
     je do_exit
-    jmp main_loop
+    cmp eax, 3
+    je do_display
+    cmp eax, 1
+    je get_coords
+    cmp eax, 2
+    jne _start
+get_coords:
+    mov r12d, eax
+    lea rsi, [prompt]
+    call print_string
+    call read_number
+    jc input_error
+    mov [coords], eax
+    call read_number
+    jc input_error
+    mov [coords+4], eax
+    call read_number
+    jc input_error
+    mov [coords+8], eax
+    mov ecx, 3
+    lea rdi, [coords]
+validate:
+    cmp dword [rdi], 255
+    ja out_of_bounds
+    add rdi, 4
+    loop validate
+    cmp r12d, 1
+    je do_insert
+    jmp do_search
+out_of_bounds:
+    lea rsi, [invalid]
+    call print_string
+    jmp _start
 
 do_insert:
-    ; Read coordinates
-    mov rsi, prompt_x
-    call print_string
-    call read_number
-    mov [tx], eax
-    
-    mov rsi, prompt_y
-    call print_string
-    call read_number
-    mov [ty], eax
-    
-    mov rsi, prompt_z
-    call print_string
-    call read_number
-    mov [tz], eax
-
-    ; Validate 0<=coord<=255
-    mov eax, [tx]
-    cmp eax, 0
-    jl ins_fail
-    cmp eax, 255
-    jg ins_fail
-    
-    mov eax, [ty]
-    cmp eax, 0
-    jl ins_fail
-    cmp eax, 255
-    jg ins_fail
-    
-    mov eax, [tz]
-    cmp eax, 0
-    jl ins_fail
-    cmp eax, 255
-    jg ins_fail
-
-    ; If no root, allocate
-    mov rdi, [root]
-    test rdi, rdi
-    jnz store_point
-    
-    call mk_node
-    test rax, rax
-    jz ins_fail
-    
+    mov rbx, [root]
+    test rbx, rbx
+    jnz insert_root
+    call new_node
     mov [root], rax
-    mov rdi, rax
-
-store_point:
-    mov eax, [tx]
-    mov [rdi + 4], eax
-    mov eax, [ty]
-    mov [rdi + 8], eax
-    mov eax, [tz]
-    mov [rdi + 12], eax
-    
-    mov rsi, msg_inserted
+    mov rbx, rax
+insert_root:
+    mov r13d, 7
+insert_level:
+    call octant
+    lea r14, [rbx+16+rax*8]
+    mov rbx, [r14]
+    test rbx, rbx
+    jnz child_exists
+    call new_node
+    mov [r14], rax
+    mov rbx, rax
+child_exists:
+    dec r13d
+    jns insert_level
+    mov eax, [coords]
+    mov [rbx], eax
+    mov eax, [coords+4]
+    mov [rbx+4], eax
+    mov eax, [coords+8]
+    mov [rbx+8], eax
+    mov dword [rbx+12], 1
+    lea rsi, [inserted]
     call print_string
-    jmp main_loop
-
-ins_fail:
-    mov rsi, msg_not_found
-    call print_string
-    jmp main_loop
+    jmp _start
 
 do_search:
-    mov rsi, prompt_x
+    mov rbx, [root]
+    mov r13d, 7
+search_level:
+    test rbx, rbx
+    jz not_found
+    call octant
+    mov rbx, [rbx+16+rax*8]
+    dec r13d
+    jns search_level
+    test rbx, rbx
+    jz not_found
+    cmp dword [rbx+12], 1
+    jne not_found
+    lea rsi, [found]
     call print_string
-    call read_number
-    mov [tx], eax
-    
-    mov rsi, prompt_y
+    jmp _start
+not_found:
+    lea rsi, [missing]
     call print_string
-    call read_number
-    mov [ty], eax
-    
-    mov rsi, prompt_z
-    call print_string
-    call read_number
-    mov [tz], eax
+    jmp _start
 
-    mov rdi, [root]
-    test rdi, rdi
-    jz sr_fail
-    
-    mov eax, [tx]
-    cmp eax, [rdi + 4]
-    jne sr_fail
-    
-    mov eax, [ty]
-    cmp eax, [rdi + 8]
-    jne sr_fail
-    
-    mov eax, [tz]
-    cmp eax, [rdi + 12]
-    jne sr_fail
-    
-    mov rsi, msg_found
-    call print_string
-    
-    ; print coords
-    mov eax, [tx]
-    call print_number
-    mov rsi, newline
-    call print_string
-    jmp main_loop
-
-sr_fail:
-    mov rsi, msg_not_found
-    call print_string
-    jmp main_loop
+octant:
+    mov ecx, r13d
+    mov eax, [coords]
+    shr eax, cl
+    and eax, 1
+    mov edx, [coords+4]
+    shr edx, cl
+    and edx, 1
+    lea eax, [eax+edx*2]
+    mov edx, [coords+8]
+    shr edx, cl
+    and edx, 1
+    lea eax, [eax+edx*4]
+    ret
 
 do_display:
     mov rdi, [root]
+    call display
+    jmp _start
+
+display:
     test rdi, rdi
-    jz dp_fail
-    
-    mov eax, [rdi + 4]
+    jz display_done
+    push rbx
+    push r12
+    mov rbx, rdi
+    cmp dword [rbx+12], 1
+    jne display_children
+    mov eax, [rbx]
     call print_number
-    mov rsi, space
+    lea rsi, [space]
     call print_string
-    
-    mov eax, [rdi + 8]
+    mov eax, [rbx+4]
     call print_number
-    mov rsi, space
+    lea rsi, [space]
     call print_string
-    
-    mov eax, [rdi + 12]
+    mov eax, [rbx+8]
     call print_number
-    mov rsi, newline
+    lea rsi, [newline]
     call print_string
-    jmp main_loop
-
-dp_fail:
-    mov rsi, msg_not_found
-    call print_string
-    jmp main_loop
-
-do_exit:
-    mov rax, 60
-    xor rdi, rdi
-    syscall
-
-; Allocate 32-byte node
-mk_node:
-    mov rax, 9          ; sys_mmap
-    xor rdi, rdi        ; addr = 0
-    mov rsi, 32         ; length
-    mov rdx, 3          ; PROT_READ | PROT_WRITE
-    mov r10, 34         ; MAP_PRIVATE | MAP_ANONYMOUS
-    mov r8, -1          ; fd
-    mov r9, 0           ; offset
-    syscall
-    
-    cmp rax, -1
-    je mk_fail
-    
-    ; Clear the allocated memory
-    push rdi
-    push rcx
-    push rax
-    mov rdi, rax
-    mov rcx, 32
-    xor eax, eax
-    rep stosb
-    pop rax
-    pop rcx
-    pop rdi
+display_children:
+    xor r12d, r12d
+display_loop:
+    mov rdi, [rbx+16+r12*8]
+    call display
+    inc r12d
+    cmp r12d, 8
+    jl display_loop
+    pop r12
+    pop rbx
+display_done:
     ret
 
-mk_fail:
-    xor rax, rax
-    ret
-
-; I/O helpers
-read_digit:
-    call clear_buf
-    mov rax, 0          ; sys_read
-    mov rdi, 0          ; stdin
-    mov rsi, buf
-    mov rdx, 2
+new_node:
+    mov rax, [node_next]
+    lea rdx, [rax+80]
+    cmp rdx, [node_limit]
+    jbe .take_node
+    ; Anonymous mappings are zeroed. Pack 51 80-byte nodes into each page.
+    mov eax, 9
+    xor edi, edi
+    mov esi, 4096
+    mov edx, 3
+    mov r10d, 34
+    mov r8, -1
+    xor r9d, r9d
     syscall
-    mov al, [buf]
+    cmp rax, -4095
+    jae input_error
+    lea rdx, [rax+4096]
+    mov [node_limit], rdx
+    lea rdx, [rax+80]
+.take_node:
+    mov [node_next], rdx
     ret
 
 read_number:
-    call clear_buf
-    mov rax, 0          ; sys_read
-    mov rdi, 0          ; stdin
-    mov rsi, buf
-    mov rdx, 16
+    xor r8d, r8d
+    xor r9d, r9d
+    mov r10d, 2147483647
+skip_space:
+    call read_byte
+    test eax, eax
+    jz number_eof
+    cmp byte [buf], 32
+    je skip_space
+    movzx eax, byte [buf]
+    sub eax, 9
+    cmp eax, 4
+    jbe skip_space
+    cmp byte [buf], '-'
+    jne number_plus
+    mov r9d, 1
+    inc r10d
+    jmp number_sign
+number_plus:
+    cmp byte [buf], '+'
+    jne parse_digit
+number_sign:
+    call read_byte
+    test eax, eax
+    jz input_error
+parse_digit:
+    movzx edx, byte [buf]
+    sub edx, '0'
+    cmp edx, 9
+    ja input_error
+    cmp r8d, 214748364
+    ja input_error
+    imul r8d, r8d, 10
+    add r8d, edx
+    cmp r8d, r10d
+    ja input_error
+    call read_byte
+    test eax, eax
+    jz parsed
+    cmp byte [buf], 32
+    je parsed
+    movzx eax, byte [buf]
+    sub eax, 9
+    cmp eax, 4
+    ja parse_digit
+parsed:
+    mov eax, r8d
+    test r9d, r9d
+    jz parsed_done
+    neg eax
+parsed_done:
+    clc
+    ret
+number_eof:
+    stc
+    ret
+read_byte:
+    xor eax, eax
+    xor edi, edi
+    lea rsi, [buf]
+    mov edx, 1
     syscall
-    
-    ; Parse the number
-    xor rax, rax
-    xor rcx, rcx
-
-parse_loop:
-    mov dl, [buf + rcx]
-    cmp dl, 10          ; newline
-    je parse_done
-    cmp dl, 13          ; carriage return
-    je parse_done
-    cmp dl, '0'
-    jb next_char
-    cmp dl, '9'
-    ja next_char
-    
-    sub dl, '0'
-    imul rax, rax, 10
-    movzx rdx, dl
-    add rax, rdx
-
-next_char:
-    inc rcx
-    cmp rcx, 16
-    jb parse_loop
-
-parse_done:
+    test rax, rax
+    js input_error
     ret
 
 print_string:
-    push rsi
-    push rdx
-    xor rdx, rdx
-
-count_chars:
-    cmp byte [rsi + rdx], 0
+    xor edx, edx
+string_length:
+    cmp byte [rsi+rdx], 0
     je write_string
-    inc rdx
-    jmp count_chars
-
+    inc edx
+    jmp string_length
 write_string:
-    mov rax, 1          ; sys_write
-    mov rdi, 1          ; stdout
+    mov eax, 1
+    mov edi, 1
     syscall
-    pop rdx
-    pop rsi
     ret
 
 print_number:
-    push rcx
-    push rbx
-    push rdx
-    
+    lea rsi, [buf+16]
+    mov r10d, 10
+    xor ecx, ecx
+number_digit:
+    xor edx, edx
+    div r10d
+    add dl, '0'
+    dec rsi
+    mov [rsi], dl
+    inc ecx
     test eax, eax
-    jnz convert_number
-    
-    ; Handle zero
-    mov rsi, space      ; reuse space buffer
-    mov byte [space], '0'
-    mov rdx, 1
-    mov rax, 1
-    mov rdi, 1
+    jnz number_digit
+    mov edx, ecx
+    mov eax, 1
+    mov edi, 1
     syscall
-    jmp print_num_done
-
-convert_number:
-    xor rcx, rcx
-    mov ebx, 10
-
-convert_loop:
-    xor rdx, rdx
-    div ebx
-    push rdx
-    inc rcx
-    test eax, eax
-    jnz convert_loop
-
-print_digits:
-    test rcx, rcx
-    jz print_num_done
-    pop rax
-    add al, '0'
-    mov [buf], al
-    mov rsi, buf
-    mov rdx, 1
-    push rcx
-    mov rax, 1
-    mov rdi, 1
-    syscall
-    pop rcx
-    dec rcx
-    jmp print_digits
-
-print_num_done:
-    pop rdx
-    pop rbx
-    pop rcx
     ret
 
-clear_buf:
-    push rdi
-    push rcx
-    push rax
-    mov rdi, buf
-    mov rcx, 16
-    xor eax, eax
-    rep stosb
-    pop rax
-    pop rcx
-    pop rdi
-    ret
+do_exit:
+    xor edi, edi
+    jmp exit_status
+input_error:
+    mov edi, 1
+exit_status:
+    mov eax, 60
+    syscall
+
+section .note.GNU-stack noalloc noexec nowrite progbits

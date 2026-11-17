@@ -1,8 +1,11 @@
+#include "../../common/input.h"
+/* R-tree insertion propagates child splits and bounding rectangles upward. */
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <float.h>
 #include <stdbool.h>
+#include <math.h>
 
 #define M 4
 #define m 2
@@ -38,6 +41,7 @@ void free_rtree(RTreeNode *node);
 
 RTree* create_rtree() {
     RTree *tree = (RTree*)malloc(sizeof(RTree));
+    if (!tree) exit(EXIT_FAILURE);
     tree->root = create_node(true);
     tree->total_nodes = 1;
     return tree;
@@ -45,6 +49,7 @@ RTree* create_rtree() {
 
 RTreeNode* create_node(bool is_leaf) {
     RTreeNode *node = (RTreeNode*)calloc(1, sizeof(RTreeNode));
+    if (!node) exit(EXIT_FAILURE);
     node->is_leaf = is_leaf;
     node->count = 0;
     return node;
@@ -86,7 +91,7 @@ RTreeNode* choose_leaf(RTreeNode *node, Rectangle rect) {
         double enlargement = calc_enlargement(node->mbr[i], rect);
         double area = calc_area(node->mbr[i]);
 
-        if (enlargement < min_enlargement || 
+        if (enlargement < min_enlargement ||
             (enlargement == min_enlargement && area < min_area)) {
             min_enlargement = enlargement;
             min_area = area;
@@ -97,9 +102,8 @@ RTreeNode* choose_leaf(RTreeNode *node, Rectangle rect) {
     return choose_leaf(node->child[best_idx], rect);
 }
 
-// Quadratic split algorithm
-void quadratic_split(RTreeNode *node, RTreeNode **new_node, 
-                     Rectangle new_rect, int new_data) {
+void quadratic_split(RTreeNode *node, RTreeNode **new_node,
+                     Rectangle new_rect, int new_data, RTreeNode *new_child) {
     *new_node = create_node(node->is_leaf);
 
     Rectangle all_rects[M + 1];
@@ -118,16 +122,16 @@ void quadratic_split(RTreeNode *node, RTreeNode **new_node,
     if (node->is_leaf) {
         all_data[M] = new_data;
     } else {
-        all_children[M] = (RTreeNode*)((long)new_data);
+        all_children[M] = new_child;
     }
 
     int seed1 = 0, seed2 = 1;
-    double max_waste = -1;
+    double max_waste = -DBL_MAX;
 
     for (int i = 0; i < M + 1; i++) {
         for (int j = i + 1; j < M + 1; j++) {
             Rectangle combined = union_rect(all_rects[i], all_rects[j]);
-            double waste = calc_area(combined) - calc_area(all_rects[i]) 
+            double waste = calc_area(combined) - calc_area(all_rects[i])
                           - calc_area(all_rects[j]);
             if (waste > max_waste) {
                 max_waste = waste;
@@ -175,7 +179,14 @@ void quadratic_split(RTreeNode *node, RTreeNode **new_node,
         double enl1 = calc_enlargement(union1, all_rects[i]);
         double enl2 = calc_enlargement(union2, all_rects[i]);
 
-        if (enl1 < enl2 || (enl1 == enl2 && node->count < (*new_node)->count)) {
+        int remaining = 0;
+        for (int j = i; j < M + 1; j++) if (!assigned[j]) remaining++;
+        if (node->count + remaining == m ||
+            ((*new_node)->count + remaining != m &&
+             (enl1 < enl2 || (enl1 == enl2 &&
+              (calc_area(union1) < calc_area(union2) ||
+               (calc_area(union1) == calc_area(union2) &&
+                node->count < (*new_node)->count)))))) {
             node->mbr[node->count] = all_rects[i];
             if (node->is_leaf) {
                 node->data_id[node->count] = all_data[i];
@@ -195,58 +206,64 @@ void quadratic_split(RTreeNode *node, RTreeNode **new_node,
     }
 }
 
-RTreeNode* adjust_tree(RTree *tree, RTreeNode *node, RTreeNode *split_node, 
-                       Rectangle *node_mbr, Rectangle *split_mbr) {
-    if (node == tree->root) {
-        if (split_node != NULL) {
-            RTreeNode *new_root = create_node(false);
-            new_root->mbr[0] = *node_mbr;
-            new_root->child[0] = node;
-            new_root->mbr[1] = *split_mbr;
-            new_root->child[1] = split_node;
-            new_root->count = 2;
-            tree->root = new_root;
-            tree->total_nodes++;
-        }
-        return NULL;
-    }
-    return NULL;
+Rectangle node_bounds(RTreeNode *node) {
+    Rectangle bounds = node->mbr[0];
+    for (int i = 1; i < node->count; i++) bounds = union_rect(bounds, node->mbr[i]);
+    return bounds;
 }
 
-void insert_rect_recursive(RTree *tree, RTreeNode *node, Rectangle rect, 
-                          int data_id, RTreeNode **split_node, 
-                          Rectangle *split_mbr) {
-    if (node->is_leaf) {
-        if (node->count < M) {
-            node->mbr[node->count] = rect;
-            node->data_id[node->count] = data_id;
-            node->count++;
-            *split_node = NULL;
-        } else {
-            quadratic_split(node, split_node, rect, data_id);
-
-            *split_mbr = (*split_node)->mbr[0];
-            for (int i = 1; i < (*split_node)->count; i++) {
-                *split_mbr = union_rect(*split_mbr, (*split_node)->mbr[i]);
-            }
-            tree->total_nodes++;
+void insert_rect_recursive(RTree *tree, RTreeNode *node, Rectangle rect,
+                           int data_id, RTreeNode **split_node,
+                           Rectangle *split_mbr) {
+    RTreeNode *child_split = NULL;
+    Rectangle entry = rect;
+    if (!node->is_leaf) {
+        int best = 0;
+        for (int i = 1; i < node->count; i++) {
+            double candidate = calc_enlargement(node->mbr[i], rect);
+            double current = calc_enlargement(node->mbr[best], rect);
+            if (candidate < current ||
+                (candidate == current && calc_area(node->mbr[i]) < calc_area(node->mbr[best])))
+                best = i;
         }
+        insert_rect_recursive(tree, node->child[best], rect, data_id,
+                              &child_split, &entry);
+        node->mbr[best] = node_bounds(node->child[best]);
+        if (!child_split) { *split_node = NULL; return; }
     }
+    if (node->count < M) {
+        node->mbr[node->count] = entry;
+        if (node->is_leaf) node->data_id[node->count] = data_id;
+        else node->child[node->count] = child_split;
+        node->count++;
+        *split_node = NULL;
+    } else {
+        quadratic_split(node, split_node, entry, data_id, child_split);
+        *split_mbr = node_bounds(*split_node);
+        tree->total_nodes++;
+    }
+}
+
+bool valid_rectangle(Rectangle rect) {
+    return isfinite(rect.xmin) && isfinite(rect.ymin) &&
+           isfinite(rect.xmax) && isfinite(rect.ymax) &&
+           rect.xmin <= rect.xmax && rect.ymin <= rect.ymax;
 }
 
 void insert_rect(RTree *tree, Rectangle rect, int data_id) {
-    RTreeNode *leaf = choose_leaf(tree->root, rect);
-    RTreeNode *split_node = NULL;
+    if (!valid_rectangle(rect)) return;
+    RTreeNode *split = NULL;
     Rectangle split_mbr;
-
-    insert_rect_recursive(tree, leaf, rect, data_id, &split_node, &split_mbr);
-
-    if (split_node != NULL) {
-        Rectangle node_mbr = leaf->mbr[0];
-        for (int i = 1; i < leaf->count; i++) {
-            node_mbr = union_rect(node_mbr, leaf->mbr[i]);
-        }
-        adjust_tree(tree, leaf, split_node, &node_mbr, &split_mbr);
+    insert_rect_recursive(tree, tree->root, rect, data_id, &split, &split_mbr);
+    if (split) {
+        RTreeNode *new_root = create_node(false);
+        new_root->count = 2;
+        new_root->child[0] = tree->root;
+        new_root->mbr[0] = node_bounds(tree->root);
+        new_root->child[1] = split;
+        new_root->mbr[1] = split_mbr;
+        tree->root = new_root;
+        tree->total_nodes++;
     }
 }
 
@@ -323,39 +340,25 @@ int main() {
         printf("4. Exit\n");
         printf("Enter choice: ");
 
-        if (scanf("%d", &choice) != 1) {
-            printf("Invalid input!\n");
-            while (getchar() != '\n');
-            continue;
-        }
+        if (!readInteger(&choice)) break;
 
         switch (choice) {
             case 1:
                 printf("Enter rectangle (xmin ymin xmax ymax): ");
-                if (scanf("%lf %lf %lf %lf", 
-                         &rect.xmin, &rect.ymin, &rect.xmax, &rect.ymax) != 4) {
-                    printf("Invalid input!\n");
-                    while (getchar() != '\n');
-                    break;
-                }
+                if (!readDouble(&rect.xmin) || !readDouble(&rect.ymin) ||
+                    !readDouble(&rect.xmax) || !readDouble(&rect.ymax)) goto done;
                 printf("Enter data ID: ");
-                if (scanf("%d", &id) != 1) {
-                    printf("Invalid input!\n");
-                    while (getchar() != '\n');
-                    break;
-                }
+                if (!readInteger(&id)) goto done;
+                if (!valid_rectangle(rect)) { printf("Invalid rectangle!\n"); break; }
                 insert_rect(tree, rect, id);
                 printf("Rectangle inserted successfully!\n");
                 break;
 
             case 2:
                 printf("Enter query rectangle (xmin ymin xmax ymax): ");
-                if (scanf("%lf %lf %lf %lf", 
-                         &rect.xmin, &rect.ymin, &rect.xmax, &rect.ymax) != 4) {
-                    printf("Invalid input!\n");
-                    while (getchar() != '\n');
-                    break;
-                }
+                if (!readDouble(&rect.xmin) || !readDouble(&rect.ymin) ||
+                    !readDouble(&rect.xmax) || !readDouble(&rect.ymax)) goto done;
+                if (!valid_rectangle(rect)) { printf("Invalid rectangle!\n"); break; }
                 printf("\nSearch results:\n");
                 search_range(tree->root, rect, 0);
                 break;
@@ -375,5 +378,8 @@ int main() {
                 printf("Invalid choice!\n");
         }
     }
+done:
+    free_rtree(tree->root);
+    free(tree);
     return 0;
 }

@@ -1,3 +1,5 @@
+#include "../../common/input.h"
+/* Array-backed heap insertion and repeated root extraction. */
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -6,8 +8,8 @@
 static int heap[MAXN];
 static int heap_size = 0;
 
-/* Insert value into max-heap */
 void insert_heap(int value) {
+    if (heap_size >= MAXN) exit(EXIT_FAILURE);
     int i = heap_size++;
     while (i > 0) {
         int parent = (i - 1) / 2;
@@ -18,8 +20,8 @@ void insert_heap(int value) {
     heap[i] = value;
 }
 
-/* Extract and return the maximum value from max-heap */
 int extract_max(void) {
+    if (heap_size == 0) exit(EXIT_FAILURE);
     int result = heap[0];
     int last   = heap[--heap_size];
     int i      = 0;
@@ -38,9 +40,9 @@ int extract_max(void) {
 
 int main(void) {
     int n, x;
-    if (scanf("%d", &n) != 1) return EXIT_FAILURE;
+    if (!readInteger(&n) || n < 0 || n > MAXN) return EXIT_FAILURE;
     for (int i = 0; i < n; i++) {
-        scanf("%d", &x);
+        if (!readInteger(&x)) return EXIT_FAILURE;
         insert_heap(x);
     }
     for (int i = 0; i < n; i++) {

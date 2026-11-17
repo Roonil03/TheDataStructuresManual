@@ -1,5 +1,8 @@
+/* Sparse formats store nonzero values and indices instead of dense cells. */
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdint.h>
+#include <limits.h>
 
 typedef struct {
     int row;
@@ -41,7 +44,7 @@ void printCSR(CSR *csr) {
         printf("%d ", csr->colIndex[i]);
     }
     printf("\nRow Pointers: ");
-    for (int i = 0; i <= csr->rows; i++) {
+    for (size_t i = 0; i < (size_t)csr->rows + 1; i++) {
         printf("%d ", csr->rowPtr[i]);
     }
     printf("\n");
@@ -58,7 +61,7 @@ void printCSC(CSC *csc) {
         printf("%d ", csc->rowIndex[i]);
     }
     printf("\nColumn Pointers: ");
-    for (int i = 0; i <= csc->cols; i++) {
+    for (size_t i = 0; i < (size_t)csc->cols + 1; i++) {
         printf("%d ", csc->colPtr[i]);
     }
     printf("\n");
@@ -81,21 +84,45 @@ void printCOO(COO *coo) {
     printf("\n");
 }
 
-void convertToCSR(int **matrix, int rows, int cols, CSR *csr) {
-    int nonZeroCount = 0;    
+/* Only stored nonzero entries must fit the int indices and allocation sizes. */
+static int countNonZero(int **matrix, int rows, int cols, int *count) {
+    if (rows < 0 || cols < 0) return 0;
+    *count = 0;
+    if (rows == 0 || cols == 0) return 1;
+    if (matrix == NULL) return 0;
+    for (int i = 0; i < rows; i++) {
+        if (matrix[i] == NULL) return 0;
+    }
     for (int i = 0; i < rows; i++) {
         for (int j = 0; j < cols; j++) {
             if (matrix[i][j] != 0) {
-                nonZeroCount++;
+                if (*count == INT_MAX) return 0;
+                (*count)++;
             }
         }
     }
+    return 1;
+}
+
+int convertToCSR(int **matrix, int rows, int cols, CSR *csr) {
+    *csr = (CSR){0};
+    int nonZeroCount;
+    if (!countNonZero(matrix, rows, cols, &nonZeroCount) ||
+        (size_t)rows >= SIZE_MAX / sizeof(int) ||
+        (size_t)nonZeroCount > SIZE_MAX / sizeof(int)) return 0;
     csr->rows = rows;
     csr->cols = cols;
     csr->nonZeroCount = nonZeroCount;
-    csr->values = (int *)malloc(nonZeroCount * sizeof(int));
-    csr->colIndex = (int *)malloc(nonZeroCount * sizeof(int));
-    csr->rowPtr = (int *)malloc((rows + 1) * sizeof(int));
+    csr->values = nonZeroCount ? malloc((size_t)nonZeroCount * sizeof(int)) : NULL;
+    csr->colIndex = nonZeroCount ? malloc((size_t)nonZeroCount * sizeof(int)) : NULL;
+    csr->rowPtr = malloc(((size_t)rows + 1) * sizeof(int));
+    if ((nonZeroCount && (!csr->values || !csr->colIndex)) || !csr->rowPtr) {
+        free(csr->values);
+        free(csr->colIndex);
+        free(csr->rowPtr);
+        *csr = (CSR){0};
+        return 0;
+    }
     int k = 0;
     csr->rowPtr[0] = 0;
     for (int i = 0; i < rows; i++) {
@@ -108,23 +135,28 @@ void convertToCSR(int **matrix, int rows, int cols, CSR *csr) {
         }
         csr->rowPtr[i + 1] = k;
     }
+    return 1;
 }
 
-void convertToCSC(int **matrix, int rows, int cols, CSC *csc) {
-    int nonZeroCount = 0;
-    for (int i = 0; i < rows; i++) {
-        for (int j = 0; j < cols; j++) {
-            if (matrix[i][j] != 0) {
-                nonZeroCount++;
-            }
-        }
-    }
+int convertToCSC(int **matrix, int rows, int cols, CSC *csc) {
+    *csc = (CSC){0};
+    int nonZeroCount;
+    if (!countNonZero(matrix, rows, cols, &nonZeroCount) ||
+        (size_t)cols >= SIZE_MAX / sizeof(int) ||
+        (size_t)nonZeroCount > SIZE_MAX / sizeof(int)) return 0;
     csc->rows = rows;
     csc->cols = cols;
     csc->nonZeroCount = nonZeroCount;
-    csc->values = (int *)malloc(nonZeroCount * sizeof(int));
-    csc->rowIndex = (int *)malloc(nonZeroCount * sizeof(int));
-    csc->colPtr = (int *)malloc((cols + 1) * sizeof(int));
+    csc->values = nonZeroCount ? malloc((size_t)nonZeroCount * sizeof(int)) : NULL;
+    csc->rowIndex = nonZeroCount ? malloc((size_t)nonZeroCount * sizeof(int)) : NULL;
+    csc->colPtr = malloc(((size_t)cols + 1) * sizeof(int));
+    if ((nonZeroCount && (!csc->values || !csc->rowIndex)) || !csc->colPtr) {
+        free(csc->values);
+        free(csc->rowIndex);
+        free(csc->colPtr);
+        *csc = (CSC){0};
+        return 0;
+    }
     int k = 0;
     csc->colPtr[0] = 0;
     for (int j = 0; j < cols; j++) {
@@ -137,19 +169,20 @@ void convertToCSC(int **matrix, int rows, int cols, CSC *csc) {
         }
         csc->colPtr[j + 1] = k;
     }
+    return 1;
 }
 
-void convertToCOO(int **matrix, int rows, int cols, COO *coo) {
-    int nonZeroCount = 0;    
-    for (int i = 0; i < rows; i++) {
-        for (int j = 0; j < cols; j++) {
-            if (matrix[i][j] != 0) {
-                nonZeroCount++;
-            }
-        }
-    }
+int convertToCOO(int **matrix, int rows, int cols, COO *coo) {
+    *coo = (COO){0};
+    int nonZeroCount;
+    if (!countNonZero(matrix, rows, cols, &nonZeroCount) ||
+        (size_t)nonZeroCount > SIZE_MAX / sizeof(Element)) return 0;
     coo->nonZeroCount = nonZeroCount;
-    coo->elements = (Element *)malloc(nonZeroCount * sizeof(Element));
+    coo->elements = nonZeroCount ? malloc((size_t)nonZeroCount * sizeof(Element)) : NULL;
+    if (nonZeroCount && !coo->elements) {
+        *coo = (COO){0};
+        return 0;
+    }
     int k = 0;
     for (int i = 0; i < rows; i++) {
         for (int j = 0; j < cols; j++) {
@@ -161,37 +194,31 @@ void convertToCOO(int **matrix, int rows, int cols, COO *coo) {
             }
         }
     }
+    return 1;
 }
 
-int main() {
-    int rows = 4, cols = 5;
-    int **matrix = (int **)malloc(rows * sizeof(int *));
-    for (int i = 0; i < rows; i++) {
-        matrix[i] = (int *)malloc(cols * sizeof(int));
-    }
-
-    // Example sparse matrix
+int main(void) {
     int exampleMatrix[4][5] = {
         {0, 0, 3, 0, 4},
         {0, 0, 5, 7, 0},
         {0, 0, 0, 0, 0},
         {0, 2, 6, 0, 0}
     };
-
-    for (int i = 0; i < rows; i++) {
-        for (int j = 0; j < cols; j++) {
-            matrix[i][j] = exampleMatrix[i][j];
-        }
+    int *matrix[4];
+    for (int i = 0; i < 4; i++) matrix[i] = exampleMatrix[i];
+    CSR csr = {0};
+    CSC csc = {0};
+    COO coo = {0};
+    int success = convertToCSR(matrix, 4, 5, &csr) &&
+                  convertToCSC(matrix, 4, 5, &csc) &&
+                  convertToCOO(matrix, 4, 5, &coo);
+    if (success) {
+        printCSR(&csr);
+        printCSC(&csc);
+        printCOO(&coo);
+    } else {
+        fprintf(stderr, "Sparse matrix conversion failed.\n");
     }
-    CSR csr;
-    CSC csc;
-    COO coo;
-    convertToCSR(matrix, rows, cols, &csr);
-    convertToCSC(matrix, rows, cols, &csc);
-    convertToCOO(matrix, rows, cols, &coo);
-    printCSR(&csr);
-    printCSC(&csc);
-    printCOO(&coo);
     free(csr.values);
     free(csr.colIndex);
     free(csr.rowPtr);
@@ -199,10 +226,5 @@ int main() {
     free(csc.rowIndex);
     free(csc.colPtr);
     free(coo.elements);
-    for (int i = 0; i < rows; i++) {
-        free(matrix[i]);
-    }
-    free(matrix);
-
-    return 0;
+    return success ? EXIT_SUCCESS : EXIT_FAILURE;
 }

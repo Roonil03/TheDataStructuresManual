@@ -12,15 +12,27 @@ typedef struct {
     AdjNode **heads;
 } AdjList;
 
+static int valid_vertex(const AdjList *g, int v) {
+    return g && v >= 0 && v < g->V;
+}
+
 AdjList *adjlist_create(int V) {
-    AdjList *g = malloc(sizeof(AdjList));
+    if (V < 0) return NULL;
+    AdjList *g = malloc(sizeof(*g));
+    if (!g) return NULL;
     g->V = V;
     g->heads = calloc(V, sizeof(AdjNode *));
+    if (!g->heads && V) {
+        free(g);
+        return NULL;
+    }
     return g;
 }
 
 void adjlist_add_edge(AdjList *g, int src, int dst, int weight) {
+    if (!valid_vertex(g, src) || !valid_vertex(g, dst)) return;
     AdjNode *node = malloc(sizeof(AdjNode));
+    if (!node) return;
     node->dst = dst;
     node->weight = weight;
     node->next = g->heads[src];
@@ -28,12 +40,14 @@ void adjlist_add_edge(AdjList *g, int src, int dst, int weight) {
 }
 
 int adjlist_has_edge(AdjList *g, int src, int dst) {
+    if (!valid_vertex(g, src) || !valid_vertex(g, dst)) return 0;
     for (AdjNode *n = g->heads[src]; n; n = n->next)
         if (n->dst == dst) return 1;
     return 0;
 }
 
 void adjlist_remove_edge(AdjList *g, int src, int dst) {
+    if (!valid_vertex(g, src) || !valid_vertex(g, dst)) return;
     AdjNode **curr = &g->heads[src];
     while (*curr) {
         if ((*curr)->dst == dst) {
@@ -47,6 +61,7 @@ void adjlist_remove_edge(AdjList *g, int src, int dst) {
 }
 
 int adjlist_out_degree(AdjList *g, int v) {
+    if (!valid_vertex(g, v)) return 0;
     int count = 0;
     for (AdjNode *n = g->heads[v]; n; n = n->next) count++;
     return count;
@@ -61,14 +76,21 @@ static void dfs_util(AdjList *g, int v, int *visited) {
 }
 
 void adjlist_dfs(AdjList *g, int start) {
+    if (!valid_vertex(g, start)) return;
     int *visited = calloc(g->V, sizeof(int));
-    dfs_util(g, start, visited);
+    if (visited) dfs_util(g, start, visited);
     free(visited);
 }
 
 void adjlist_bfs(AdjList *g, int start) {
+    if (!valid_vertex(g, start)) return;
     int *visited = calloc(g->V, sizeof(int));
-    int *queue = malloc(g->V * sizeof(int));
+    int *queue = calloc(g->V, sizeof(int));
+    if (!visited || !queue) {
+        free(visited);
+        free(queue);
+        return;
+    }
     int front = 0, rear = 0;
     visited[start] = 1;
     queue[rear++] = start;
@@ -87,6 +109,7 @@ void adjlist_bfs(AdjList *g, int start) {
 }
 
 void adjlist_print(AdjList *g) {
+    if (!g) return;
     printf("Adjacency List (%d vertices):\n", g->V);
     for (int i = 0; i < g->V; i++) {
         printf("  %d:", i);
@@ -97,6 +120,7 @@ void adjlist_print(AdjList *g) {
 }
 
 void adjlist_free(AdjList *g) {
+    if (!g) return;
     for (int i = 0; i < g->V; i++) {
         AdjNode *n = g->heads[i];
         while (n) {
@@ -111,6 +135,7 @@ void adjlist_free(AdjList *g) {
 
 int main(void) {
     AdjList *g = adjlist_create(5);
+    if (!g) return EXIT_FAILURE;
 
     adjlist_add_edge(g, 0, 1, 10);
     adjlist_add_edge(g, 0, 4, 20);
@@ -137,6 +162,5 @@ int main(void) {
     printf("After removing 0->1, exists: %d\n", adjlist_has_edge(g, 0, 1));
 
     adjlist_free(g);
-    printf("All tests passed.\n");
     return 0;
 }

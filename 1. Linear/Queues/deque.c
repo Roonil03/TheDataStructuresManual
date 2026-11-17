@@ -1,4 +1,5 @@
-#include <stdio.h>
+/* Front and rear index a circular array supporting changes at both ends. */
+#include "../../common/input.h"
 #include <stdlib.h>
 
 #define MAX 10
@@ -18,7 +19,7 @@ void deleteFront(Deque* deque);
 void deleteRear(Deque* deque);
 void display(Deque* deque);
 
-int main() {
+int main(void) {
     Deque deque;
     initializeDeque(&deque);
 
@@ -33,17 +34,17 @@ int main() {
         printf("5. Display\n");
         printf("6. Exit\n");
         printf("Enter your choice: ");
-        scanf("%d", &choice);
+        if (!readInteger(&choice)) goto cleanup;
 
         switch (choice) {
             case 1:
                 printf("Enter value to insert at front: ");
-                scanf("%d", &value);
+                if (!readInteger(&value)) goto cleanup;
                 insertFront(&deque, value);
                 break;
             case 2:
                 printf("Enter value to insert at rear: ");
-                scanf("%d", &value);
+                if (!readInteger(&value)) goto cleanup;
                 insertRear(&deque, value);
                 break;
             case 3:
@@ -56,12 +57,13 @@ int main() {
                 display(&deque);
                 break;
             case 6:
-                exit(0);
+                goto cleanup;
             default:
                 printf("Invalid choice! Please try again.\n");
         }
     }
 
+cleanup:
     return 0;
 }
 

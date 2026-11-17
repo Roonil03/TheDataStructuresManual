@@ -1,41 +1,31 @@
 # Cartesian Tree
 
-A binary tree derived from an array where the root is the minimum element, and left/right subtrees are recursively built from the left/right subarrays. It satisfies both BST order on indices and min-heap order on values.
+`CartesianTree.c` builds a min Cartesian tree from an integer array. Inorder traversal follows original array indices, and each parent value is no larger than its children's values. Equal values retain the earlier element above later equal elements because construction pops only strictly larger values.
 
-## Memory Mechanics
+## Implementation
 
+`ct_build(arr, n)` creates a tree using a temporary monotonic stack of node pointers. Each node is pushed once and popped at most once. The input array is copied into separately allocated nodes and remains unchanged. An empty array creates a tree with a null root; a negative length or a null array with positive length returns `NULL`.
+
+`CTNode` stores `value`, `index`, and two child pointers (typically 24 bytes on an ABI with 4-byte integers and 8-byte pointers; use `sizeof` for the target platform). The temporary construction stack uses `n * sizeof(CTNode *)` bytes and is freed before returning.
+
+The demonstration's `rmq(root, lo, hi)` visits every node, returning a node with the smallest value whose index is inside the inclusive range, or `NULL` if none exists. It does not validate the bounds against the original array size. An LCA-based constant-time RMQ index is a possible extension and is not implemented.
+
+| Operation | Time | Auxiliary space |
+| :-- | :-- | :-- |
+| Build | O(n) | O(n) temporary stack |
+| Range minimum query | O(n) | O(h) recursion |
+| Traversal / destruction | O(n) | O(h) recursion |
+| Stored tree | — | O(n) |
+
+Here `h` is tree height, which can be `n` for monotonic input. Recursive helpers can exhaust the call stack on very deep trees. Allocation failure prints an error and terminates the process. The caller frees both the node tree and its `CartesianTree` wrapper.
+
+Cartesian trees are useful for range minimum indexing and for relating array order to heap priorities.
+
+## Run
+
+```sh
+cc -std=c11 -Wall -Wextra -Wpedantic CartesianTree.c -o /tmp/cartesian-tree
+/tmp/cartesian-tree
 ```
-CTNode (32 bytes):
-┌──────────┬──────────┬──────────┬──────────┐
-│ value(4) │ index(4) │ left*(8) │right*(8) │
-└──────────┴──────────┴──────────┴──────────┘
 
-For input [3, 2, 6, 1, 9, 5, 7]:
-
-            [1, idx=3]
-           /          \
-     [2, idx=1]    [5, idx=5]
-     /     \        /     \
-  [3,i=0] [6,i=2] [9,i=4] [7,i=6]
-```
-
-- **Stack-based O(n) construction:** Nodes are pushed onto a stack. When a smaller value arrives, nodes are popped (becoming left children) until the stack top is smaller or empty. This processes each element at most twice (push + pop).
-- **No auxiliary arrays:** The tree is built in-place with individual `malloc` calls per node (32 bytes each). The stack is a temporary `n × 8 byte` pointer array, freed after construction.
-- **Index preservation:** Each node stores its original array index, enabling range queries. Inorder traversal reproduces the original array order.
-- **RMQ via tree structure:** Range minimum query over `[lo, hi]` traverses the tree, collecting all nodes with index in range and returning the minimum value.
-
-## Uses
-
-- **Range Minimum Queries (RMQ):** The Cartesian tree converts RMQ to Lowest Common Ancestor (LCA), enabling O(1) RMQ with O(n) preprocessing.
-- **Treap construction:** Cartesian trees with random priorities are equivalent to treaps; the stack-based build is the batch construction algorithm.
-- **Sorting visualization:** The tree structure reveals the recursive partitioning behavior of selection-sort-like algorithms.
-
-## Complexities
-
-| Operation      | Time   | Notes                           |
-|:---------------|:-------|:--------------------------------|
-| Build          | O(n)   | Stack-based, each element ≤ 2 ops |
-| RMQ (naive)    | O(n)   | Full tree traversal             |
-| RMQ (with LCA) | O(1)  | After O(n) Euler tour preprocessing |
-| Inorder        | O(n)   | Reproduces original array       |
-| **Space**      | **O(n)** | 32 bytes per node             |
+The fixed demonstration prints the tree, its invariants, and three range minima. Its output is illustrative rather than a comprehensive automated test suite.

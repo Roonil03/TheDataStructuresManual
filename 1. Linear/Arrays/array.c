@@ -1,12 +1,13 @@
-#include <stdio.h>
+/* The fixed array stores five signed integers in contiguous memory. */
+#include "../../common/input.h"
 
-int main() {
+int main(void) {
     int arr[5];
     int i;
     printf("Enter 5 integers:\n");
     for (i = 0; i < 5; i++) {
         printf("Enter integer %d: ", i + 1);
-        scanf("%d", &arr[i]);
+        if (!readInteger(&arr[i])) return EXIT_FAILURE;
     }
     printf("You entered:\n");
     for (i = 0; i < 5; i++) {

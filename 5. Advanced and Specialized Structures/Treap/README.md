@@ -1,39 +1,28 @@
 # Treap
 
-A randomized binary search tree where each node holds a key (BST-ordered) and a random priority (max-heap-ordered). Rotations maintain both invariants simultaneously, yielding expected O(log n) height.
+`Treap.c` combines a binary search tree on distinct integer keys with a max-heap on priorities supplied by `rand()`. Duplicate insertions leave the tree unchanged. Equal priorities are permitted.
 
-## Memory Mechanics
+## Implementation
 
+Insertion follows the BST path and rotates a child upward when its priority exceeds its parent's. Deletion replaces a node with its only child, or rotates the child with the larger priority upward before continuing deletion. Search follows ordinary BST ordering. Every mutating operation returns the updated root, which the caller must retain.
+
+`TreapNode` contains two integers and two child pointers, typically 24 bytes on a platform with 4-byte integers and 8-byte pointers. Each node is allocated individually. The demonstration seeds `rand` with 42; the exact generated priorities can differ between C libraries.
+
+| Operation | Expected time | Worst time |
+| :-- | :-- | :-- |
+| Insert / delete / search | O(log n) | O(n) |
+| Traversal / destruction | O(n) | O(n) |
+| Stored space | O(n) | O(n) |
+
+The expected height bound assumes sufficiently independent random priorities. This implementation uses the C library pseudorandom generator, offers no adversarial guarantee, and has no deterministic balancing rule. Recursive auxiliary space is O(h), with possible call-stack exhaustion when height approaches `n`. Allocation failure prints an error and terminates. `free_tree` releases the nodes.
+
+Treaps are useful randomized search trees. Implicit indexing, split, and merge are related extensions and are not implemented here.
+
+## Run
+
+```sh
+cc -std=c11 -Wall -Wextra -Wpedantic Treap.c -o /tmp/treap
+/tmp/treap
 ```
-TreapNode (32 bytes on 64-bit):
-┌──────────┬──────────────┬──────────┬──────────┐
-│ key (4B) │ priority (4B)│ left*(8B)│right*(8B)│
-└──────────┴──────────────┴──────────┴──────────┘
 
-Tree shape example (keys in BST order, priorities in heap order):
-         [50, p=97]
-        /           \
-   [30, p=84]    [70, p=62]
-   /     \          /
-[20,p=33][40,p=71] [60,p=45]
-```
-
-- **Node allocation:** Each node is individually `malloc`'d (32 bytes). No contiguous array — tree shape is entirely pointer-driven.
-- **Rotations:** `rotate_right` / `rotate_left` swap parent-child pointers to bubble higher-priority nodes upward while preserving BST order. These are O(1) pointer reassignments.
-- **Randomized balance:** Priorities are assigned via `rand()` at insertion. Expected tree height is O(log n), equivalent to a random BST, without needing deterministic balancing rules.
-- **Deletion:** The target node is rotated downward (choosing the child with higher priority) until it becomes a leaf, then freed.
-
-## Uses
-
-- **Randomized search trees:** Used where AVL/RB-tree complexity is undesirable but balanced performance is needed.
-- **Implicit treaps:** Array-backed sequences with O(log n) split/merge for text editors and rope data structures.
-- **Randomized priority queues:** Combined key-ordered search with priority-ordered extraction.
-
-## Complexities
-
-| Operation | Expected   | Worst  | Notes                        |
-|:----------|:-----------|:-------|:-----------------------------|
-| Search    | O(log n)   | O(n)   | BST search                   |
-| Insert    | O(log n)   | O(n)   | BST insert + rotations up    |
-| Delete    | O(log n)   | O(n)   | Rotate down to leaf + free   |
-| **Space** | **O(n)**   |        | 32 bytes per node            |
+The fixed demonstration prints inorder order, height, BST/heap checks, searches, and deletions. It is not a comprehensive automated test suite.

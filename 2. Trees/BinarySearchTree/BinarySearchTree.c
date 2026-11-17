@@ -1,3 +1,5 @@
+#include "../../common/input.h"
+/* Recursive binary search tree insertion and inorder traversal. */
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -9,6 +11,7 @@ struct Node {
 
 struct Node* createNode(int data) {
     struct Node* newNode = (struct Node*)malloc(sizeof(struct Node));
+    if (!newNode) exit(EXIT_FAILURE);
     newNode->data = data;
     newNode->left = newNode->right = NULL;
     return newNode;
@@ -16,12 +19,12 @@ struct Node* createNode(int data) {
 
 struct Node* insert(struct Node* root, int data) {
     if (root == NULL) return createNode(data);
-    
+
     if (data < root->data)
         root->left = insert(root->left, data);
     else if (data > root->data)
         root->right = insert(root->right, data);
-    
+
     return root;
 }
 
@@ -33,22 +36,30 @@ void inorder(struct Node* root) {
     }
 }
 
+void free_tree(struct Node *node) {
+    if (node == NULL) return;
+    free_tree(node->left);
+    free_tree(node->right);
+    free(node);
+}
+
 int main() {
     struct Node* root = NULL;
     int n, data;
-    
+
     printf("Enter number of nodes: ");
-    scanf("%d", &n);
-    
+    if (!readInteger(&n) || n < 0) return EXIT_FAILURE;
+
     printf("Enter values: ");
     for (int i = 0; i < n; i++) {
-        scanf("%d", &data);
+        if (!readInteger(&data)) { free_tree(root); return EXIT_FAILURE; }
         root = insert(root, data);
     }
-    
+
     printf("Inorder traversal: ");
     inorder(root);
     printf("\n");
-    
+
+    free_tree(root);
     return 0;
 }

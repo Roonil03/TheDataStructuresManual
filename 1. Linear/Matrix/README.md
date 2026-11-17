@@ -12,4 +12,7 @@ A matrix is a two-dimensional array of numbers arranged in rows and columns. It 
     - Time Complexity: O(n^3) for an n x n matrix using Gaussian elimination.
 5. Inverse: Finding a matrix that, when multiplied by the original matrix, yields the identity matrix.
     - Time Complexity: O(n^3) for an n x n matrix using Gaussian elimination.
-    
+
+### Examples in this directory
+
+`matrix.c` reads and displays a 5×5 matrix of signed C `int` values. Input is whitespace-separated; missing or malformed input stops the program. `matrix.asm` is a Linux x86-64 NASM example that initializes a 5×5 matrix with 1 through 25 and prints its rows. These examples demonstrate storage and traversal; the arithmetic operations described above are not implemented here.

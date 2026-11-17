@@ -1,48 +1,13 @@
-# Hash Map
+# Hash map
 
-A key-value associative container that maps keys to values using a hash function. Collisions are resolved via separate chaining (linked lists per bucket).
+Each bucket holds a singly linked chain of key-value pairs. An insertion scans the chain for an existing key and updates its value if found. A new entry goes at the head. Removal unlinks a single entry. Both examples use a fixed positive bucket count.
 
-## Memory Mechanics
+## Keys and storage
 
-```
-HashMap struct (16 bytes):
-┌────────────┬──────────┬──────────────────┐
-│  cap (4B)  │ size (4B)│ buckets_ptr (8B) │
-└────────────┴──────────┴────────┬─────────┘
-                                 │
-                                 ▼
-Bucket array (cap × 8 bytes, array of pointers):
-┌──────────┬──────────┬──────────┬──────────┬─────┐
-│bucket[0] │bucket[1] │bucket[2] │bucket[3] │ ... │
-└──────────┴────┬─────┴──────────┴──────────┴─────┘
-                │
-                ▼
-             Entry (C: key_ptr + val + next)
-             ┌──────────┬──────────┬──────────┐
-             │ key* (8) │ val (4)  │ next*(8) │
-             └──────────┴──────────┴────┬─────┘
-                                        ▼
-                                     Entry ──→ NULL
-```
+The C example maps strings to integers. It hashes the bytes with djb2 and takes the remainder modulo the bucket count. The map owns a copy of each key, freed on removal or destruction. `hashmap_put` returns 1 on success and 0 on failure. The assembly example uses signed 32-bit integer keys and values. Its bucket index is the magnitude of the signed remainder.
 
-- **Hash function (djb2):** `h = ((h << 5) + h) + c` for each character. Result is modded by capacity to select a bucket index.
-- **Bucket lookup:** `buckets_ptr + hash(key) * 8` gives the head pointer for the chain. O(1) pointer dereference.
-- **Collision chains:** Each bucket is a singly-linked list of Entry nodes. On collision, a new node is prepended (O(1) insert). Lookups traverse the chain comparing keys via `strcmp`.
-- **Key ownership:** Keys are `strdup`'d on insert — the map owns its own copy. On removal, both the key string and the Entry are freed.
-- **Load factor:** With `n` entries and `cap` buckets, average chain length is `n/cap`. No automatic rehashing in this implementation.
+On x86-64 both map headers take 16 bytes and each bucket head takes 8 bytes. A C entry takes 24 bytes including padding, plus the allocated key string. An assembly entry takes 16 bytes. In both implementations `hashmap_get` returns 1 and writes the value on a hit. It returns 0 on a miss.
 
-## Uses
+## Complexity
 
-- **Symbol tables:** Compilers and interpreters map variable names to memory addresses/types.
-- **Caching / memoization:** Store computed results keyed by input parameters for O(1) retrieval.
-- **Configuration stores:** Map string keys to values for application settings, environment variables.
-
-## Complexities
-
-| Operation  | Average | Worst    | Notes                          |
-|:-----------|:--------|:---------|:-------------------------------|
-| Put        | O(1)    | O(n)     | Amortized; worst = full chain  |
-| Get        | O(1)    | O(n)     | Chain traversal on collision   |
-| Remove     | O(1)    | O(n)     | Chain traversal + unlink       |
-| Contains   | O(1)    | O(n)     | Same as Get                    |
-| **Space**  | **O(n + cap)** | | 8·cap bytes buckets + entry nodes |
+With uniformly distributed hashes, a chain has expected length n / b for n entries and b buckets. Lookup, update and removal examine O(1 + n / b) entries on average and O(n) in the worst case. String hashing also reads the input key, and string comparisons may read matching prefixes. Storage is O(b + n) plus the bytes in the C keys.
